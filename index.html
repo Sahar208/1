@@ -877,12 +877,16 @@ function verify(id){ const g=App.g; g.ok.add(id); const c=document.querySelector
   if(c){ c.classList.add('ok','pop'); c.classList.remove('yourturn','listening'); c.querySelector('.tick').textContent='⭐'; setTimeout(()=>c.classList.remove('pop'),450); }
   const sp=document.querySelector(`[data-speak="${id}"]`); if(sp) sp.innerHTML=myVoiceBtn(id); setSaid(id,'⭐ אמרת נכון!','good'); Sound.sfx('star'); updateLearn(); Store.save(App.s.id); }
 async function micCheck(id){ const g=App.g,s=App.s,w=getWord(id); if(!g.heard.has(id)){ toast('קודם הקשיבו למילה 🔊'); return; } if(Speak.busy) return;
-  Speak.busy=true; Sound.stop(); const card=document.querySelector(`[data-card="${id}"]`); card&&card.classList.add('listening'); setSaid(id,'🎤 רגע...');
-  const rec=MICAPP?await Speak.startRec():null; setSaid(id,'👂 מקשיב... אמרו: '+w.en);
-  const r=await Speak.listen(); const url=rec?await rec.stop():null; if(url){ if(g.rec[id]) URL.revokeObjectURL(g.rec[id]); g.rec[id]=url; }
+  Speak.busy=true; Sound.stop(); const card=document.querySelector(`[data-card="${id}"]`); card&&card.classList.add('listening'); setSaid(id,'👂 מקשיב... אמרו: '+w.en);
+  await sleep(150); const r=await Speak.listen();
   Speak.busy=false; card&&card.classList.remove('listening'); if(App.screen!=='learn'||App.g!==g) return;
-  if(r.err&&Speak.ok===false){ if(MICAPP){ setSaid(id,'',''); App.micHelp=true; if(Store.settings.fallbackAdult!==false) g.mode='adult'; render(); return; } g.mode='adult'; toast('אין גישה למיקרופון כאן. מבוגר יאשר את ההגייה 👍'); render(); return; }
-  if(r.err==='no-speech'||(r.timeout&&!(r.alts||[]).length)){ setSaid(id,'לא שמעתי כלום · לחצו 🎤 ודברו בקול','bad'); const sp0=document.querySelector(`[data-speak="${id}"]`); if(sp0) sp0.innerHTML=speakTools(w); return; }
+  const sp0=document.querySelector(`[data-speak="${id}"]`);
+  if(r.err&&!['no-speech','aborted'].includes(r.err)&&!(r.alts||[]).length){
+    if(!MICAPP){ g.mode='adult'; toast('אין גישה למיקרופון כאן. מבוגר יאשר את ההגייה 👍'); render(); return; }
+    const M={'not-allowed':'הדפדפן חוסם את המיקרופון. לחצו על סמל המנעול ליד הכתובת ← מיקרופון ← לאפשר, ואז נסו שוב.','service-not-allowed':'הדפדפן לא מאפשר זיהוי דיבור. נסו ב-Chrome או ב-Edge רגיל (לא בחלון גלישה בסתר).','audio-capture':'לא נמצא מיקרופון. בדקו שהמיקרופון מחובר ונסו שוב.','network':'זיהוי הדיבור צריך חיבור לאינטרנט. בדקו את החיבור ונסו שוב.','no-audio':'המיקרופון לא נפתח. לחצו שוב על 🎤 ואשרו את המיקרופון אם הדפדפן שואל.','unsupported':'הדפדפן הזה לא תומך בזיהוי דיבור. השתמשו ב-Chrome או ב-Edge.'};
+    setSaid(id,(M[r.err]||('תקלה בזיהוי הדיבור ('+r.err+'). נסו שוב.')),'bad'); Speak.ok=null;
+    g.micErr=(g.micErr||0)+1; if(sp0) sp0.innerHTML=speakTools(w)+(g.micErr>=2&&Store.settings.fallbackAdult!==false?`<button class="btn small ghost" data-act="approve" data-w="${id}">👍 מבוגר אישר</button>`:''); return; }
+  if(!(r.alts||[]).length){ setSaid(id,'לא שמעתי כלום · לחצו 🎤 ודברו בקול וברור','bad'); if(sp0) sp0.innerHTML=speakTools(w); return; }
   const x=ws(s,id); x.st++; touch();
   if(Speak.match(w.en,r.alts||[])){ x.sv++; x.r++; verify(id); return; }
   g.tries[id]=(g.tries[id]||0)+1; const said=(r.alts&&r.alts[0])?'שמעתי: "'+r.alts[0]+'" · נסו שוב':'לא שמעתי טוב · נסו שוב, קרוב יותר למחשב';
@@ -1130,7 +1134,8 @@ function vTSettings(){ const S=Store.settings,T=App.t; const c=T.confirm&&T.conf
     <label class="toggle"><input type="radio" name="t-speak" id="t-speak-off" data-act="t-speak" value="off" ${sp==='off'?'checked':''}>בלי בדיקה (הילד לוחץ "אמרתי!")</label></div>
     <label class="toggle"><input type="checkbox" id="t-fbadult" data-act="t-fbadult" ${S.fallbackAdult!==false?'checked':''}>אחרי 3 ניסיונות שלא זוהו, מבוגר יכול לאשר</label>
     <p class="note">כשהבדיקה פעילה, התלמיד ממשיך להתאמה רק אחרי שאמר נכון את כל המילים. זיהוי אוטומטי צריך מיקרופון, אינטרנט ודפדפן Chrome או Edge. ${MICAPP?'':'בדף הקישור של Claude המיקרופון חסום, ולכן כאן המשחק עובר לאישור מבוגר. לזיהוי אמיתי השתמשו בגרסת הכיתה.'}</p>
-    <p class="note">בדפדפן הזה: ${Speak.supported()?(Speak.ok===false?'המיקרופון חסום ← אישור מבוגר':'זיהוי דיבור נתמך'):'אין זיהוי דיבור ← אישור מבוגר'}</p></div>
+    <p class="note">בדפדפן הזה: ${Speak.supported()?'זיהוי דיבור נתמך':'אין זיהוי דיבור. השתמשו ב-Chrome או ב-Edge'}</p>
+    <div class="row"><button class="btn small" data-act="t-mictest">🎤 בדיקת מיקרופון: אמרו "Hello"</button></div><p class="note" id="t-mictest-out" aria-live="polite"></p></div>
    <div class="tbox set"><h2>משחק</h2><label class="toggle"><input type="checkbox" id="t-openall" data-act="t-openall" ${S.openAll?'checked':''}>כל השלבים פתוחים מההתחלה</label>
     <label class="toggle"><input type="checkbox" id="t-sfx" data-act="t-sfx" ${S.sfx!==false?'checked':''}>צלילי הצלחה וטעות</label>
     <p class="note">כשהאפשרות הראשונה כבויה, כל שלב נפתח רק אחרי שהשלב הקודם הושלם. רשימות המורה תמיד פתוחות.</p></div>
@@ -1211,6 +1216,9 @@ const ACT={
   't-wipe':()=>{ for(const id of Object.keys(Store.students)) Store.remove(id); App.t.confirm=null; toast('נתוני התלמידים נמחקו'); render(); },
   't-openall':el=>{ Store.setSettings({openAll:el.checked}); toast(el.checked?'כל השלבים פתוחים':'שלבים נפתחים לפי הסדר'); },
   't-sfx':el=>{ Store.setSettings({sfx:el.checked}); },
+  't-mictest':async el=>{ const o=$('#t-mictest-out'); if(!Speak.supported()){ o.textContent='הדפדפן הזה לא תומך בזיהוי דיבור.'; return; } el.disabled=true; o.textContent='👂 מקשיב... אמרו Hello';
+    const r=await Speak.listen(); el.disabled=false; if((r.alts||[]).length){ o.textContent='✅ עובד! שמעתי: "'+r.alts[0]+'"'+(Speak.match('Hello',r.alts)?' · זוהה נכון':''); }
+    else o.textContent='❌ לא עבד. קוד: '+(r.err||'לא נשמע דיבור')+(r.err==='not-allowed'?' · צריך לאשר מיקרופון בסמל המנעול ליד הכתובת':r.err==='network'?' · צריך אינטרנט':r.err==='no-audio'?' · המיקרופון לא נפתח':''); },
   't-fbadult':el=>{ Store.setSettings({fallbackAdult:el.checked}); },
   't-speak':el=>{ Store.setSettings({speak:el.value}); toast(el.value==='off'?'בדיקת ההגייה כבויה':el.value==='adult'?'מבוגר יאשר את ההגייה':'זיהוי דיבור אוטומטי, עם אישור מבוגר כגיבוי'); render(); },
   't-weaklist':el=>{ const s=Store.students[el.dataset.id]; if(!s) return; const weak=wordsFor(s).filter(w=>{const v=s.words&&s.words[w.id]; return v&&(level(v)===-1||(v.ma+v.qa>=2&&(v.mo+v.qo)/(v.ma+v.qa)<.5));}).slice(0,8);
