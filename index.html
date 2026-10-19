@@ -807,7 +807,7 @@ function kbar(extra=''){ const s=App.s; const m=summary(s);
   return `<div class="kbar"><div class="me"><span class="av">${esc(s.avatar)}</span><b>${esc(s.name)}</b></div><span class="starcount" title="כוכבים">⭐ ${m.stars}</span><span class="spacer"></span>${extra}</div>`; }
 
 function vWho(){ const list=Object.values(Store.students).sort((a,b)=>(b.lastActive||0)-(a.lastActive||0)||a.name.localeCompare(b.name,'he'));
-  return `<div class="hero"><div class="logo">🏝️</div><h1>אי המילים</h1><p class="sub">מקשיבים, אומרים בקול, ולומדים מילים באנגלית</p>${MICAPP?'<p><span class="mode">🎤 עם בדיקת הגייה במיקרופון</span></p>':''}</div>
+  return `<div class="hero"><div class="logo">🏝️</div><h1>אי המילים</h1><p class="sub">מקשיבים, אומרים בקול, ולומדים מילים באנגלית</p>${MICAPP?'<p><span class="mode">🎤 עם בדיקת הגייה במיקרופון</span></p>':'<p><a class="btn sun small" href="https://sahar208.github.io/1/" target="_blank" rel="noopener">🎤 לגרסה עם בדיקת הגייה במיקרופון</a></p>'}</div>
   <div class="panel stack"><h2 style="font-size:1.6rem">מי משחק היום?</h2>
   <div class="players">${list.map(s=>{const m=summary(s);return `<button class="player" data-act="pick" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span><b>${esc(s.name)}</b><small>⭐ ${m.stars} · שלב ${m.current}</small></button>`;}).join('')}
   <button class="player add" data-act="newp"><span class="av">＋</span><b>אני חדש/ה</b><small>יצירת שחקן</small></button></div></div>
@@ -851,9 +851,10 @@ function speakTools(w){ const g=App.g; const id=w.id;
   return `<button class="btn small sun" data-act="approve" data-w="${id}">👍 מבוגר: אמר/ה נכון</button>`; }
 const myVoiceBtn=id=>App.g&&App.g.rec&&App.g.rec[id]?`<button class="btn small" data-act="myvoice" data-w="${id}">🎧 שמעו את עצמכם</button>`:'';
 function vLearn(){ const g=App.g; const all=gateDone(); const N=g.words.length;
+  const siteLink=!MICAPP&&g.mode==='adult'?' · <a href="https://sahar208.github.io/1/" target="_blank" rel="noopener">לבדיקה אוטומטית במיקרופון פתחו את האתר</a>':'';
   const how=g.mode==='auto'?'לחצו על 🎤 ואמרו את המילה באנגלית. רק כשתגידו נכון היא תסומן ⭐':g.mode==='adult'?'אמרו את המילה בקול. מבוגר שמקשיב לוחץ 👍 כשההגייה נכונה':'אחר כך אמרו אותה בקול!';
   const help=App.micHelp?`<div class="demo-banner" style="margin-bottom:16px"><b>🎤 המיקרופון לא זמין</b><span>לחצו על סמל המנעול או המצלמה בשורת הכתובת, בחרו "מיקרופון: לאפשר", וטענו את הדף מחדש. צריך חיבור לאינטרנט, ודפדפן Chrome או Edge.</span><span class="spacer"></span><button class="btn small" data-act="michelp-x">הבנתי</button></div>`:'';
-  return shead()+steps(0)+help+`<div class="prompt"><span class="ic">👂</span><div><b>לחצו על כל כרטיס ותשמעו את המילה.</b><p class="muted">${how} · 🐢 משמיע לאט</p></div><span class="spacer"></span><div class="meter" id="meter">${meterHTML()}</div></div>
+  return shead()+steps(0)+help+`<div class="prompt"><span class="ic">👂</span><div><b>לחצו על כל כרטיס ותשמעו את המילה.</b><p class="muted">${how} · 🐢 משמיע לאט${siteLink}</p></div><span class="spacer"></span><div class="meter" id="meter">${meterHTML()}</div></div>
   <div class="cards">${g.words.map(w=>`<div class="wcard ${g.heard.has(w.id)?'heard':''} ${g.ok.has(w.id)?'ok':''}" data-card="${w.id}">
     <span class="tick" aria-hidden="true">${g.ok.has(w.id)?'⭐':'✓'}</span><span class="turn">🗣️ תורך! אמרו בקול</span>
     <button class="wcard-main" data-act="hear" data-w="${w.id}" aria-label="השמעת ${esc(w.en)}">${pic(w)}<span class="en" lang="en">${esc(w.en)}</span><span class="he">${esc(w.he)}</span></button>
