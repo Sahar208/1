@@ -847,7 +847,11 @@ function gateDone(){ const g=App.g; return g.heard.size===g.words.length&&(g.mod
 function meterHTML(){ const g=App.g; return g.words.map(w=>`<i class="${(g.mode==='off'?g.heard.has(w.id):g.ok.has(w.id))?'on':g.heard.has(w.id)?'half':''}"></i>`).join(''); }
 function speakTools(w){ const g=App.g; const id=w.id;
   if(g.mode==='off') return `<button class="btn small sun" data-act="said" data-w="${id}">אמרתי!</button>`;
-  if(g.mode==='auto') return `<button class="btn small sun mic" data-act="mic" data-w="${id}">🎤 עכשיו אתם</button>${myVoiceBtn(id)}${(g.tries[id]||0)>=3&&Store.settings.fallbackAdult!==false?`<button class="btn small ghost" data-act="approve" data-w="${id}">👍 מבוגר אישר</button>`:''}`;
+  if(g.mode==='auto'){ const t=g.tries[id]||0;
+    return `<button class="btn small sun mic" data-act="mic" data-w="${id}">🎤 עכשיו אתם</button>${myVoiceBtn(id)}`
+      +(g.micDown?`<button class="btn small" data-act="nomic">▶️ להמשיך בלי מיקרופון</button>`:'')
+      +(t>=2?`<button class="btn small" data-act="skipw" data-w="${id}">⏭️ להמשיך, נתרגל אחר כך</button>`:'')
+      +(t>=2&&Store.settings.fallbackAdult!==false?`<button class="btn small ghost" data-act="approve" data-w="${id}">👍 מבוגר אישר</button>`:''); }
   return `<button class="btn small sun" data-act="approve" data-w="${id}">👍 מבוגר: אמר/ה נכון</button>`; }
 const myVoiceBtn=id=>App.g&&App.g.rec&&App.g.rec[id]?`<button class="btn small" data-act="myvoice" data-w="${id}">🎧 שמעו את עצמכם</button>`:'';
 function vLearn(){ const g=App.g; const all=gateDone(); const N=g.words.length;
@@ -886,8 +890,8 @@ async function micCheck(id){ const g=App.g,s=App.s,w=getWord(id); if(!g.heard.ha
     if(!MICAPP){ g.mode='adult'; toast('אין גישה למיקרופון כאן. מבוגר יאשר את ההגייה 👍'); render(); return; }
     const M={'not-allowed':'הדפדפן חוסם את המיקרופון. לחצו על סמל המנעול ליד הכתובת ← מיקרופון ← לאפשר, ואז נסו שוב.','service-not-allowed':'הדפדפן לא מאפשר זיהוי דיבור. נסו ב-Chrome או ב-Edge רגיל (לא בחלון גלישה בסתר).','audio-capture':'לא נמצא מיקרופון. בדקו שהמיקרופון מחובר ונסו שוב.','network':'זיהוי הדיבור צריך חיבור לאינטרנט. בדקו את החיבור ונסו שוב.','no-audio':'המיקרופון לא נפתח. לחצו שוב על 🎤 ואשרו את המיקרופון אם הדפדפן שואל.','unsupported':'הדפדפן הזה לא תומך בזיהוי דיבור. השתמשו ב-Chrome או ב-Edge.'};
     setSaid(id,(M[r.err]||('תקלה בזיהוי הדיבור ('+r.err+'). נסו שוב.')),'bad'); Speak.ok=null;
-    g.micErr=(g.micErr||0)+1; if(sp0) sp0.innerHTML=speakTools(w)+(g.micErr>=2&&Store.settings.fallbackAdult!==false?`<button class="btn small ghost" data-act="approve" data-w="${id}">👍 מבוגר אישר</button>`:''); return; }
-  if(!(r.alts||[]).length){ setSaid(id,'לא שמעתי כלום · לחצו 🎤 ודברו בקול וברור','bad'); if(sp0) sp0.innerHTML=speakTools(w); return; }
+    g.micDown=true; g.tries[id]=(g.tries[id]||0)+1; if(sp0) sp0.innerHTML=speakTools(w); return; }
+  if(!(r.alts||[]).length){ g.tries[id]=(g.tries[id]||0)+1; setSaid(id,'לא שמעתי כלום · לחצו 🎤 ודברו בקול וברור','bad'); if(sp0) sp0.innerHTML=speakTools(w); return; }
   const x=ws(s,id); x.st++; touch();
   if(Speak.match(w.en,r.alts||[])){ x.sv++; x.r++; verify(id); return; }
   g.tries[id]=(g.tries[id]||0)+1; const said=(r.alts&&r.alts[0])?'שמעתי: "'+r.alts[0]+'" · נסו שוב':'לא שמעתי טוב · נסו שוב, קרוב יותר למחשב';
@@ -1038,7 +1042,7 @@ function vTStudents(list){ const T=App.t; const rows=list.map(s=>({s,m:summary(s
   <tbody>${rows.map(({s,m})=>{const st=status(m);return `<tr><td><button class="namebtn" data-act="t-open" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span>${esc(s.name)}</button></td><td>${pips(s)}${m.lists?` <span class="muted" style="font-size:.8rem">+${m.ldone}/${m.lists} רשימות</span>`:''}</td><td class="num">${m.stars}/15</td><td>${accbar(m.acc)}</td><td class="num">${m.mast}/${m.total}</td><td class="num">${m.said}/${m.total}</td><td class="num">${m.listens}</td><td class="num">${mins(m.secs)}</td><td>${ago(m.last)}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join('')}</tbody></table></div>
   <p class="note" style="margin-top:8px">לחצו על שם כדי לראות פירוט מלא לכל מילה ולכל שלב.</p>`:emptyClass()}`; }
 
-function mcell(s,w){ const v=s.words&&s.words[w.id]; const l=level(v); return `<div class="mcell ${l===2?'l2':l===1?'l1':l===-1?'lx':''}" title="${esc(w.en)} · ${esc(w.he)}">${pic(w)}<span class="en">${esc(w.en)}</span><span class="n" dir="ltr">${v?`🔊${v.h+v.sl} · ✓${v.mo+v.qo}/${v.ma+v.qa}${v.r?' · 🗣️':''}`:'—'}</span></div>`; }
+function mcell(s,w){ const v=s.words&&s.words[w.id]; const l=level(v); return `<div class="mcell ${l===2?'l2':l===1?'l1':l===-1?'lx':''}" title="${esc(w.en)} · ${esc(w.he)}">${pic(w)}<span class="en">${esc(w.en)}</span><span class="n" dir="ltr">${v?`🔊${v.h+v.sl} · ✓${v.mo+v.qo}/${v.ma+v.qa}${v.r?' · 🗣️':''}${v.sk?' · ⏭️'+v.sk:''}`:'—'}</span></div>`; }
 function vTDetail(){ const T=App.t; const s=(T.demo?DEMO:Store.students)[T.detail]; if(!s){ T.detail=null; return vTStudents(tStudents()); } const m=summary(s); const st=status(m); const lists=listsFor(s);
   const weak=wordsFor(s).filter(w=>{const v=s.words&&s.words[w.id]; return v&&(level(v)===-1||(v.ma+v.qa>=2&&(v.mo+v.qo)/(v.ma+v.qa)<.5));});
   const c=T.confirm&&T.confirm.id===s.id?T.confirm.type:null;
@@ -1050,7 +1054,7 @@ function vTDetail(){ const T=App.t; const s=(T.demo?DEMO:Store.students)[T.detai
    <div class="kpi"><span class="l">אמר/ה נכון בקול</span><span class="v">${m.said}/${m.total}</span><span class="h">${m.st?`מיקרופון: ${m.sv} הצלחות מתוך ${m.st} ניסיונות`:'אושר על ידי מבוגר'}</span></div>
    <div class="kpi"><span class="l">האזנות</span><span class="v">${m.listens}</span></div>
    <div class="kpi"><span class="l">זמן תרגול</span><span class="v" style="font-size:1.4rem">${mins(m.secs)}</span></div></div>
-  <div class="tbox" style="margin-bottom:16px"><h2>שליטה בכל מילה <small>🔊 האזנות · ✓ נכון/ניסיונות · 🗣️ אמר/ה נכון</small></h2>
+  <div class="tbox" style="margin-bottom:16px"><h2>שליטה בכל מילה <small>🔊 האזנות · ✓ נכון/ניסיונות · 🗣️ אמר/ה נכון · ⏭️ דילג על ההגייה</small></h2>
    <div class="mgrid">${WORDS.map(w=>mcell(s,w)).join('')}</div>
    ${lists.map(l=>`<h2 style="margin-top:14px">📝 ${esc(l.name)}</h2><div class="mgrid">${listWords(l).map(w=>mcell(s,w)).join('')}</div>`).join('')}
    <div class="mlegend"><span><i style="background:var(--good-bg);border:2px solid var(--good)"></i>שולט/ת</span><span><i style="background:var(--warn-bg)"></i>בתהליך</span><span><i style="background:var(--bad-bg);border:2px solid var(--bad)"></i>מתקשה</span><span><i style="background:var(--paper-2)"></i>עוד לא נחשף</span></div></div>
@@ -1190,6 +1194,10 @@ const ACT={
   said:el=>{ const id=el.dataset.w,g=App.g; if(!g.heard.has(id)){ toast('קודם לחצו על 🔊 ותקשיבו'); return; } const x=ws(App.s,id); x.r++; g.said[id]=(g.said[id]||0)+1; touch();
     setSaid(id,'אמרת '+g.said[id]+' פעמים 👏'); Sound.sfx('star'); el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'),450); Store.save(App.s.id); },
   mic:el=>micCheck(el.dataset.w),
+  skipw:el=>{ const id=el.dataset.w,g=App.g; const x=ws(App.s,id); x.sk=(x.sk||0)+1; touch(); g.ok.add(id); const c=document.querySelector(`[data-card="${id}"]`);
+    if(c){ c.classList.add('heard'); c.classList.remove('yourturn','listening'); } const sp=document.querySelector(`[data-speak="${id}"]`); if(sp) sp.innerHTML='';
+    setSaid(id,'⏭️ נתרגל את המילה הזו שוב בהמשך',''); updateLearn(); Store.save(App.s.id); },
+  nomic:()=>{ const g=App.g; g.mode='off'; App.micHelp=false; toast('ממשיכים בלי מיקרופון: מקשיבים, אומרים בקול ולוחצים "אמרתי!"'); render(); },
   myvoice:el=>{ const u=App.g&&App.g.rec[el.dataset.w]; if(!u) return; Sound.stop(); try{ const a=new Audio(u); Sound.el=a; a.play(); }catch(e){} },
   'michelp-x':()=>{ App.micHelp=false; Speak.ok=null; render(); },
   't-export':async()=>{ const name='אי-המילים-נתונים-'+dayKey()+'.json'; const data=exportData();
