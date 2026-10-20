@@ -1076,7 +1076,7 @@ const AUDIO = {
 "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr/82LEbwAAA0gAAAAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NgxHAAAANIAAAAAKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqTEFNRTMuMTAwqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NixG8AAANIAAAAAKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqkxBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/zYsRvAAADSAAAAACqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqo="
 };
 const STANDALONE = false;
-const GCLIENT = ''.indexOf('.apps.googleusercontent.com')>0 ? '' : '';
+const GCLIENT = '685757562593-a34vbi8mspcev4v5qtf9tu9779ifkhek.apps.googleusercontent.com'.indexOf('.apps.googleusercontent.com')>0 ? '685757562593-a34vbi8mspcev4v5qtf9tu9779ifkhek.apps.googleusercontent.com' : '';
 const API_BAKED = 'https://script.google.com/macros/s/AKfycbwJsZ1uHY07OKb3YtHlgmBFGoL8FvL6W_yjWQ77UBCqIr69LNeEeAP5zm0D2PnjglBb/exec'.indexOf('http')===0 ? 'https://script.google.com/macros/s/AKfycbwJsZ1uHY07OKb3YtHlgmBFGoL8FvL6W_yjWQ77UBCqIr69LNeEeAP5zm0D2PnjglBb/exec' : '';
 let API_LOCAL=''; try{ API_LOCAL=localStorage.getItem('wi-api')||''; }catch(e){}
 const API = API_LOCAL || API_BAKED;
@@ -1240,17 +1240,17 @@ const Store={db:null,mode:'local',readOnly:false,students:{},lists:{},media:{},s
   saveLocal(){ try{ localStorage.setItem(LS,JSON.stringify({students:this.students,lists:this.lists,settings:this.settings})); }catch(e){} },
   saveMediaLocal(){ try{ localStorage.setItem(LSM,JSON.stringify(this.media)); }catch(e){} },
   async connectGas(){ this.mode='gas';
-    const pull=async()=>{ try{ const d=JSON.parse(await gas('loadAll')); const next={};
+    const pull=async()=>{ const t0=Date.now(); try{ const d=JSON.parse(await gas('loadAll')); const next={};
         for(const [id,c] of Object.entries(d.students||{})){ const l=this.students[id]; const keep=l&&(this.dirty.has(id)||this.chains[id]||(l.updatedAt||0)>(c.updatedAt||0)); next[id]=keep?l:c; if(keep&&!this.dirty.has(id)&&!this.chains[id]) this.save(id,true); }
         for(const [id,l] of Object.entries(this.students)){ if(!next[id]&&(!l.cloud||this.dirty.has(id))){ next[id]=l; this.save(id,true); } }
         this.online=true; this.students=next;
         const merge=(col,prop,remote)=>{ remote=remote||{}; const out={...remote}; for(const [id,v] of Object.entries(this[prop])){ if(!remote[id]&&!v.cloud){ out[id]=v; this.put(col,id,v); } else if(remote[id]&&(v.updatedAt||0)>(remote[id].updatedAt||0)&&!v.cloud){ out[id]=v; this.put(col,id,v); } } this[prop]=out; };
         merge('lists','lists',d.lists); merge('media','media',d.media);
-        if(d.settings) Object.assign(this.settings,d.settings); else if(!this.settingsPushed){ this.settingsPushed=true; gas('saveDoc','settings','main',JSON.stringify(this.settings),null).catch(()=>{}); }
+        if(d.settings){ if(!this.sPend&&(this.sAt||0)<t0) Object.assign(this.settings,d.settings); } else if(!this.settingsPushed){ this.settingsPushed=true; gas('saveDoc','settings','main',JSON.stringify(this.settings),null).catch(()=>{}); }
         this.online=true; this.apiErr=''; rebuildCW(); this.saveLocal(); this.saveMediaLocal(); App.onData(); }
       catch(e){ this.online=false; this.apiErr=e&&e.old?'old':'net'; App.onData(); } };
     this.pull=pull;
-    await pull(); setInterval(()=>{ if(!document.hidden&&['who','teacher','map'].includes(App.screen)) pull(); },25000); },
+    await pull(); setInterval(()=>{ if(!document.hidden&&['who','teacher','map','tspace','pin'].includes(App.screen)) pull(); },25000); },
   async connect(){
     if(GAS) return this.connectGas();
     let db=null; try{ db=window.claude&&window.claude.use? await window.claude.use('db'):null; }catch(e){ db=null; }
@@ -1282,12 +1282,12 @@ const Store={db:null,mode:'local',readOnly:false,students:{},lists:{},media:{},s
       catch(e){ const c=e&&e.code; if(c==='invalid_argument'){ this.readOnly=true; App.onData(); } else if(c==='unavailable'){ this.dirty.add(id); setTimeout(()=>this.flush(id),1500+Math.random()*2000); } } };
     const p=(this.chains[id]||Promise.resolve()).then(run); this.chains[id]=p; p.finally(()=>{ if(this.chains[id]===p) delete this.chains[id]; }); },
   flushAll(){ for(const id of [...this.dirty]){ clearTimeout(this.timers[id]); this.flush(id); } },
-  add(name,avatar){ const id=uid('s');
-    this.students[id]={id,name:name.trim().slice(0,30),avatar,createdAt:Date.now(),updatedAt:Date.now(),words:{},stages:{},days:{},lastActive:0}; this.save(id,true); return id; },
+  add(name,avatar,extra){ const id=uid('s');
+    this.students[id]={...(extra||{}),id,name:name.trim().slice(0,30),avatar,createdAt:Date.now(),updatedAt:Date.now(),words:{},stages:{},days:{},lastActive:0}; this.save(id,true); return id; },
   remove(id){ delete this.students[id]; this.dirty.delete(id); this.saveLocal(); this.del('students',id);
     for(const l of Object.values(this.lists)) if(Array.isArray(l.to)&&l.to.includes(id)){ l.to=l.to.filter(x=>x!==id); this.saveLocal(); this.put('lists',l.id,l); } },
   reset(id){ const s=this.students[id]; if(!s) return; Object.assign(s,{words:{},stages:{},days:{},lastActive:0}); this.save(id,true); },
-  setSettings(p){ Object.assign(this.settings,p); this.saveLocal(); if(GAS){ gas('saveDoc','settings','main',JSON.stringify(this.settings),null).catch(()=>{}); return; } if(this.db&&!this.readOnly) this.db.doc('settings/main').set(JSON.parse(JSON.stringify(this.settings))).catch(e=>{ if(e&&e.code==='invalid_argument'){this.readOnly=true;App.onData();} }); },
+  setSettings(p){ Object.assign(this.settings,p); this.saveLocal(); if(GAS){ this.sAt=Date.now(); this.sPend=(this.sPend||0)+1; gas('saveDoc','settings','main',JSON.stringify(this.settings),null).catch(()=>{}).finally(()=>{ this.sPend--; this.sAt=Date.now(); }); return; } if(this.db&&!this.readOnly) this.db.doc('settings/main').set(JSON.parse(JSON.stringify(this.settings))).catch(e=>{ if(e&&e.code==='invalid_argument'){this.readOnly=true;App.onData();} }); },
   async saveList(meta,media,removed){ meta.updatedAt=Date.now(); delete meta.cloud; for(const m of Object.values(media)) delete m.cloud; this.lists[meta.id]=meta;
     for(const [wid,m] of Object.entries(media)) this.media[wid]=m; for(const wid of removed) delete this.media[wid];
     rebuildCW(); this.saveLocal(); this.saveMediaLocal();
@@ -1336,6 +1336,7 @@ const App={screen:'who',sid:null,g:null,np:{avatar:AVATARS[0]},pin:'',pinMsg:'',
   go(sc){ Sound.stop(); const cc=document.getElementById('coach'); if(cc) cc.hidden=true; this.screen=sc; render(); window.scrollTo({top:0}); },
   onData(){ const a=document.activeElement; if(a&&/INPUT|TEXTAREA/.test(a.tagName)&&$('#app').contains(a)) return;
     if(['who','teacher','map','bank','world','lmap','bmap','harbor','tspace'].includes(this.screen)) render();
+    if(this.screen==='skey'&&!(this.k&&Store.students[this.k.id])){ this.k=null; this.go('who'); }
     if(this.sid&&!Store.students[this.sid]&&this.kidScreen()){ this.sid=null; this.go('who'); } }
 };
 function touch(){ const s=App.s; if(s){ s.lastActive=Date.now(); } }
@@ -1344,19 +1345,52 @@ function touch(){ const s=App.s; if(s){ s.lastActive=Date.now(); } }
 function kbar(extra=''){ const s=App.s; const m=summary(s);
   return `<div class="kbar"><div class="me"><span class="av">${esc(s.avatar)}</span><b>${esc(s.name)}</b></div><span class="starcount" title="כוכבים">⭐ ${kidStars(s)}</span><span class="coincount" id="coins" title="מטבעות">🪙 <span id="coinn">${s.coins||0}</span></span><span class="spacer"></span>${extra}</div>`; }
 
-function vWho(){ const list=Object.values(Store.students).sort((a,b)=>(b.lastActive||0)-(a.lastActive||0)||a.name.localeCompare(b.name,'he'));
-  return `<div class="hero"><div class="logo">🏝️</div><h1>אי המילים</h1><p class="sub">מקשיבים, אומרים בקול, ולומדים מילים באנגלית</p>${MICAPP?'<p><span class="mode">🎤 עם בדיקת הגייה במיקרופון</span></p>':'<p><a class="btn sun small" href="https://sahar208.github.io/1/" target="_blank" rel="noopener">🎤 לגרסה עם בדיקת הגייה במיקרופון</a></p>'}</div>
-  <div class="panel stack"><h2 style="font-size:1.6rem">מי משחק היום?</h2>
-  <div class="players">${list.map(s=>{const m=summary(s);return `<button class="player" data-act="pick" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span><b>${esc(s.name)}</b><small>⭐ ${m.stars} · שלב ${m.current}</small></button>`;}).join('')}
-  <button class="player add" data-act="newp"><span class="av">＋</span><b>אני חדש/ה</b><small>יצירת שחקן</small></button></div></div>
-  <div class="teacher-link"><button class="btn small ghost" data-act="teacher">🔒 כניסת מורה</button></div>`; }
+const PICS=['🍎','🐶','⭐','🚗','🌈','🐟','⚽','🌙','🍌'], PICN=['תפוח','כלב','כוכב','מכונית','קשת','דג','כדור','ירח','בננה'];
+const SCH='word-island-school';
+function devSchool(){ if(App.school!=null) return App.school; try{ return localStorage.getItem(SCH)||''; }catch(e){ return ''; } }
+function setDevSchool(v){ App.school=v||''; try{ v?localStorage.setItem(SCH,v):localStorage.removeItem(SCH); }catch(e){} }
+const secretPics=s=>String(s&&s.secret||'').split('').map(i=>PICS[+i]||'').join(' ');
+function whoHero(){ return `<div class="hero"><div class="logo">🏝️</div><h1>אי המילים</h1><p class="sub">מקשיבים, אומרים בקול, ולומדים מילים באנגלית</p>${MICAPP?'<p><span class="mode">🎤 עם בדיקת הגייה במיקרופון</span></p>':'<p><a class="btn sun small" href="https://sahar208.github.io/1/" target="_blank" rel="noopener">🎤 לגרסה עם בדיקת הגייה במיקרופון</a></p>'}</div>`; }
+const tLink=()=>`<div class="teacher-link"><button class="btn small ghost" data-act="teacher">🔒 כניסת מורה</button></div>`;
+function vWho(){ const sc=schoolsKnown(), all=Object.values(Store.students), noSch=all.some(s=>!String(s.school||'').trim());
+  let cur=devSchool(); if(cur&&cur!=='-'&&!sc.includes(cur)) cur='';
+  if(sc.length&&!cur) return whoHero()+`<div class="panel stack"><h2 style="font-size:1.6rem">🏫 באיזה בית ספר אתם לומדים?</h2>
+    <div class="choices">${sc.map(x=>`<button class="choice" data-act="w-school" data-v="${esc(x)}"><span class="ic">🏫</span><span>${esc(x)}</span></button>`).join('')}${noSch?`<button class="choice" data-act="w-school" data-v="-"><span class="ic">❔</span><span>בית הספר שלי לא ברשימה</span></button>`:''}</div></div>`+tLink();
+  const list=all.filter(s=>!sc.length||(cur==='-'?!String(s.school||'').trim():String(s.school||'').trim()===cur)).sort((a,b)=>a.name.localeCompare(b.name,'he'));
+  return whoHero()+`<div class="panel stack">${sc.length?`<div class="row"><span class="pill neutral" style="font-size:1rem">🏫 ${cur==='-'?'בלי בית ספר':esc(cur)}</span><button class="btn small ghost" data-act="w-school" data-v="">החלפת בית ספר</button></div>`:''}
+  <h2 style="font-size:1.6rem">מי משחק היום?</h2><p class="muted" style="margin-top:-6px">מוצאים את השם שלכם, ואז מקישים על 3 התמונות הסודיות</p>
+  <div class="players">${list.map(s=>`<button class="player" data-act="pick" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span><b>${esc(s.name)}</b><small>${s.cls?esc(s.cls):'&nbsp;'}</small></button>`).join('')}
+  <button class="player add" data-act="newp"><span class="av">＋</span><b>אני חדש/ה</b><small>יצירת שחקן</small></button></div></div>`+tLink(); }
 
-function vNew(){ return `<div class="kbar"><button class="btn small" data-act="home">→ חזרה</button></div>
-  <form class="panel stack" data-form="newp" style="max-width:620px;margin-inline:auto">
+function vNew(){ const sc=schoolsKnown(); const np=App.np; if(np.school===undefined){ const d=devSchool(); np.school=d&&d!=='-'&&sc.includes(d)?d:''; }
+  return `<div class="kbar"><button class="btn small" data-act="home">→ חזרה</button></div>
+  <form class="panel stack" data-form="newp" style="max-width:640px;margin-inline:auto">
    <h2 style="font-size:1.7rem">שחקן חדש</h2>
-   <div class="field"><label for="np-name">איך קוראים לך?</label><input type="text" id="np-name" maxlength="30" autocomplete="off" required placeholder="כתבו את השם"></div>
-   <div class="field"><span style="font-weight:500">בחרו חיה שתהיה הדמות שלכם</span><div class="avatars">${AVATARS.map(a=>`<button type="button" data-act="npav" data-a="${a}" aria-pressed="${a===App.np.avatar}">${a}</button>`).join('')}</div></div>
-   <div><button class="btn primary big" type="submit">יאללה, מתחילים!</button></div></form>`; }
+   <div class="field"><label for="np-name">איך קוראים לך? (שם ואות משם המשפחה)</label><input type="text" id="np-name" maxlength="30" autocomplete="off" required placeholder="למשל: נועה כ."></div>
+   <div class="field"><span style="font-weight:500">🏫 בית הספר שלי</span>${sc.length?`<div class="choices">${sc.map(x=>`<button type="button" class="choice" data-act="np-sch" data-v="${esc(x)}" aria-pressed="${np.school===x}"><span class="ic">${np.school===x?'✅':'🏫'}</span><span>${esc(x)}</span></button>`).join('')}</div>`
+     :`<input type="text" id="np-school" maxlength="40" autocomplete="off" placeholder="שם בית הספר (לא חובה)">`}</div>
+   <div class="field"><label for="np-cls">הכיתה שלי (לא חובה)</label><input type="text" id="np-cls" maxlength="12" autocomplete="off" placeholder="למשל: ו׳2" style="max-width:200px"></div>
+   <div class="field"><span style="font-weight:500">בחרו חיה שתהיה הדמות שלכם</span><div class="avatars">${AVATARS.map(a=>`<button type="button" data-act="npav" data-a="${a}" aria-pressed="${a===np.avatar}">${a}</button>`).join('')}</div></div>
+   <div><button class="btn primary big" type="submit">ממשיכים ←</button></div></form>`; }
+
+function vKey(){ const k=App.k, s=k&&Store.students[k.id]; if(!s) return vWho();
+  const check=k.mode==='check';
+  const title=check?'מה התמונות הסודיות שלך?':k.first?'עוד פעם, כדי לזכור':'בחרו 3 תמונות סודיות';
+  const sub=check?'הקישו על 3 התמונות לפי הסדר':k.first?'הקישו שוב על אותן 3 תמונות, באותו סדר':'רק אתם והמורה תדעו אותן. כך אף אחד אחר לא ייכנס לחשבון שלכם.';
+  return `<div class="kbar"><button class="btn small" data-act="home">→ זה לא אני</button></div>
+  <div class="panel skey"><div class="skav">${esc(s.avatar)}</div><h2 style="font-size:1.6rem">${esc(s.name)}</h2><p class="hstep" style="margin:0">${title}</p><p class="muted" style="margin:0">${sub}</p>
+   <div class="kdots" id="kdots">${[0,1,2].map(i=>`<i class="${i<k.a.length?'on':''}">${!check&&i<k.a.length?PICS[k.a[i]]:''}</i>`).join('')}</div>
+   <div class="pics">${PICS.map((p,i)=>`<button data-act="kp" data-i="${i}" aria-label="${PICN[i]}">${p}</button>`).join('')}</div>
+   <div class="row" style="justify-content:center"><button class="btn small ghost" data-act="kback" ${k.a.length?'':'disabled'}>⌫ מחיקה</button></div>
+   <p class="pinmsg" id="kmsg" role="status">${esc(k.msg||'')}</p>
+   ${check&&k.fails>=3?'<p class="note" style="max-width:40ch;text-align:center">שכחתם את התמונות? אין בעיה. המורה יכול/ה לראות אותן בלוח המורה, או לאפס אותן.</p>':''}</div>`; }
+function enterKid(id,isNew){ App.sid=id; App.k=null; const s=Store.students[id]; if(s&&s.school) setDevSchool(s.school); App.go('world'); if(isNew){ Sound.phrase('hello'); FX.burst(60); } }
+function kPick(i){ const k=App.k; if(!k||k.busy||k.a.length>=3) return; const s=Store.students[k.id]; if(!s) return; k.a.push(i); k.msg=''; Sound.sfx('tap'); render(); if(k.a.length<3) return;
+  k.busy=true; setTimeout(()=>{ k.busy=false; if(App.k!==k) return; const code=k.a.join('');
+    if(k.mode==='check'){ if(code===String(s.secret)){ enterKid(s.id); return; } k.fails=(k.fails||0)+1; k.a=[]; k.msg=k.fails>=3?'עוד לא. נסו שוב, או בקשו עזרה מהמורה 🙂':'לא נורא, נסו שוב 🙂'; Sound.sfx('bad'); render(); const d=$('#kdots'); d&&d.classList.add('shake'); return; }
+    if(!k.first){ k.first=code; k.a=[]; k.msg=''; render(); return; }
+    if(code===k.first){ s.secret=code; Store.save(s.id,true); toast('התמונות הסודיות נשמרו. זכרו אותן!'); enterKid(s.id,k.isNew); return; }
+    k.first=null; k.a=[]; k.msg='זה לא היה אותו דבר. בוחרים מחדש 🙂'; Sound.sfx('bad'); render(); const d=$('#kdots'); d&&d.classList.add('shake'); },350); }
 
 function vMap(){ const s=App.s; const m=summary(s); const lists=listsFor(s);
   const isl=STAGES.map(t=>{ const st=(s.stages||{})[t.n]||{}; const un=unlocked(s,t.n); const cur=un&&!st.done&&t.n===m.current; const stars=st.stars||0;
@@ -1531,13 +1565,15 @@ function demoData(){ let seed=7; const rnd=()=>{seed=(seed*16807)%2147483647;ret
 let DEMO=null;
 function tStudents(){ if(App.t.demo){ DEMO=DEMO||demoData(); return Object.values(DEMO);} return Object.values(Store.students); }
 
-function vTeacher(){ const list=tStudents(); const T=App.t;
+function vTeacher(){ const T=App.t; const all=tStudents(); const sf=T.demo?'':(T.school||''); const list=sf?all.filter(s=>(sf==='-'?!String(s.school||'').trim():String(s.school||'').trim()===sf)):all;
   const mode=modeBadge();
-  const tabs=[['overview','סקירת הכיתה'],['students','תלמידים'],['words','מילים'],['vocab','אוצר מילים'],['settings','הגדרות']];
-  let body=''; if(T.detail) body=vTDetail(); else if(T.tab==='overview') body=vTOverview(list); else if(T.tab==='students') body=vTStudents(list); else if(T.tab==='words') body=vTWords(list); else if(T.tab==='vocab') body=vTVocab(); else body=vTSettings();
+  const pend=(Store.settings.teachers||[]).filter(t=>t.status==='pending').length;
+  const tabs=[['overview','סקירת הכיתה'],['students','תלמידים'],['words','מילים'],['vocab','אוצר מילים'],['teachers','מורים ובתי ספר'+(pend?` <span class="badge">${pend}</span>`:'')],['settings','הגדרות']];
+  const sc=schoolsKnown(); const filt=!T.demo&&sc.length&&['overview','students','words'].includes(T.tab)&&!T.detail?`<div class="row sfilter"><span class="note">בית ספר:</span>${[['','כל בתי הספר']].concat(sc.map(x=>[x,x])).concat(all.some(s=>!String(s.school||'').trim())?[['-','בלי בית ספר']]:[]).map(([v,l])=>`<button class="btn small ${sf===v?'primary':'ghost'}" data-act="t-sf" data-v="${esc(v)}">${v&&v!=='-'?'🏫 ':''}${esc(l)}</button>`).join('')}</div>`:'';
+  let body=''; if(T.detail) body=vTDetail(); else if(T.tab==='overview') body=vTOverview(list); else if(T.tab==='students') body=vTStudents(list); else if(T.tab==='words') body=vTWords(list); else if(T.tab==='vocab') body=vTVocab(); else if(T.tab==='teachers') body=vTTeachers(); else body=vTSettings();
   return `<div class="t"><div class="thead"><div><h1>לוח המורה</h1><p class="muted">אי המילים · ${list.length} תלמידים</p></div>${mode}<span class="spacer"></span><button class="btn small" data-act="t-exit">יציאה למשחק</button></div>
    ${T.demo?`<div class="demo-banner"><b>תצוגה לדוגמה</b><span>אלה נתונים מומצאים להמחשה, לא תלמידים אמיתיים.</span><span class="spacer"></span><button class="btn small" data-act="t-demo">חזרה לנתונים האמיתיים</button></div>`:''}
-   <nav class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${!T.detail&&T.tab===k}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</nav>${body}</div>`; }
+   <nav class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${!T.detail&&T.tab===k}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</nav>${filt}${body}</div>`; }
 
 function emptyClass(){ return `<div class="tbox empty"><div class="ic">🧑‍🏫</div><h2 style="font-size:1.25rem">עדיין אין תלמידים</h2><p class="muted" style="max-width:46ch">ילדים יכולים להירשם בעצמם במסך "מי משחק היום?", או שתוסיפו אותם בלשונית "תלמידים". הנתונים יופיעו כאן ברגע שיתחילו לשחק.</p>
   <div class="row" style="justify-content:center"><button class="btn primary small" data-act="t-tab" data-tab="students">הוספת תלמידים</button><button class="btn small" data-act="t-demo">הצגת תצוגה לדוגמה</button></div></div>`; }
@@ -1576,9 +1612,10 @@ function vTStudents(list){ const T=App.t; const rows=list.map(s=>({s,m:summary(s
   const key={name:x=>x.s.name,letters:x=>lettersDone(x.s),coins:x=>x.s.coins||0,stage:x=>x.m.done,stars:x=>x.m.stars,acc:x=>x.m.acc==null?-1:x.m.acc,mast:x=>x.m.mast,listens:x=>x.m.listens,said:x=>x.m.said,secs:x=>x.m.secs,last:x=>x.m.last}[T.sort];
   rows.sort((a,b)=>{ const A=key(a),B=key(b); return (typeof A==='string'?A.localeCompare(B,'he'):A-B)*T.dir; });
   const th=(k,l)=>`<th><button data-act="t-sort" data-k="${k}" aria-pressed="${T.sort===k}">${l}${T.sort===k?(T.dir>0?' ▲':' ▼'):''}</button></th>`;
-  return `<form class="addform" data-form="t-add"><input type="text" id="t-new-name" maxlength="30" placeholder="שם התלמיד/ה" autocomplete="off" required><button class="btn primary small" type="submit">＋ הוספת תלמיד/ה</button></form>
+  const sc=schoolsKnown(); const dsc=T.school&&T.school!=='-'?T.school:'';
+  return `<form class="addform" data-form="t-add"><input type="text" id="t-new-name" maxlength="30" placeholder="שם התלמיד/ה" autocomplete="off" required><input type="text" id="t-new-school" maxlength="40" placeholder="בית ספר" list="t-schools" value="${esc(dsc)}" autocomplete="off"><input type="text" id="t-new-cls" maxlength="12" placeholder="כיתה" autocomplete="off" style="max-width:110px"><datalist id="t-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist><button class="btn primary small" type="submit">＋ הוספת תלמיד/ה</button></form>
   ${list.length?`<div class="tablewrap"><table><thead><tr>${th('name','תלמיד/ה')}${th('stage','שלבים')}${th('letters','אותיות')}${th('stars','כוכבים')}${th('coins','מטבעות')}${th('acc','דיוק')}${th('mast','מילים שנשלטו')}${th('said','אמר/ה נכון')}${th('listens','האזנות')}${th('secs','זמן תרגול')}${th('last','פעילות אחרונה')}<th>מצב</th></tr></thead>
-  <tbody>${rows.map(({s,m})=>{const st=status(m);return `<tr><td><button class="namebtn" data-act="t-open" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span>${esc(s.name)}</button></td><td>${pips(s)}${m.lists?` <span class="muted" style="font-size:.8rem">+${m.ldone}/${m.lists} רשימות</span>`:''}</td><td class="num">${lettersDone(s)}/4</td><td class="num">${m.stars}/15</td><td class="num">${s.coins||0}</td><td>${accbar(m.acc)}</td><td class="num">${m.mast}/${m.total}</td><td class="num">${m.said}/${m.total}</td><td class="num">${m.listens}</td><td class="num">${mins(m.secs)}</td><td>${ago(m.last)}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join('')}</tbody></table></div>
+  <tbody>${rows.map(({s,m})=>{const st=status(m);return `<tr><td><button class="namebtn" data-act="t-open" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span>${esc(s.name)}</button>${s.school||s.cls?`<div class="note" style="margin:0">${s.school?'🏫 '+esc(s.school):''}${s.cls?' · '+esc(s.cls):''}</div>`:''}</td><td>${pips(s)}${m.lists?` <span class="muted" style="font-size:.8rem">+${m.ldone}/${m.lists} רשימות</span>`:''}</td><td class="num">${lettersDone(s)}/4</td><td class="num">${m.stars}/15</td><td class="num">${s.coins||0}</td><td>${accbar(m.acc)}</td><td class="num">${m.mast}/${m.total}</td><td class="num">${m.said}/${m.total}</td><td class="num">${m.listens}</td><td class="num">${mins(m.secs)}</td><td>${ago(m.last)}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join('')}</tbody></table></div>
   <p class="note" style="margin-top:8px">לחצו על שם כדי לראות פירוט מלא לכל מילה ולכל שלב.</p>`:emptyClass()}`; }
 
 function mcell(s,w){ const v=s.words&&s.words[w.id]; const l=level(v); return `<div class="mcell ${l===2?'l2':l===1?'l1':l===-1?'lx':''}" title="${esc(w.en)} · ${esc(w.he)}">${pic(w)}<span class="en">${esc(w.en)}</span><span class="n" dir="ltr">${v?`🔊${v.h+v.sl} · ✓${v.mo+v.qo}/${v.ma+v.qa}${v.r?' · 🗣️':''}${v.sk?' · ⏭️'+v.sk:''}`:'—'}</span></div>`; }
@@ -1586,7 +1623,7 @@ function vTDetail(){ const T=App.t; const s=(T.demo?DEMO:Store.students)[T.detai
   const weak=wordsFor(s).filter(w=>{const v=s.words&&s.words[w.id]; return v&&(level(v)===-1||(v.ma+v.qa>=2&&(v.mo+v.qo)/(v.ma+v.qa)<.5));});
   const c=T.confirm&&T.confirm.id===s.id?T.confirm.type:null;
   return `<div class="row" style="margin-bottom:14px"><button class="btn small" data-act="t-back">→ לכל התלמידים</button></div>
-  <div class="row" style="margin-bottom:16px"><span style="font-size:2.6rem">${esc(s.avatar)}</span><div><h2 style="font-size:1.6rem">${esc(s.name)}</h2><p class="muted">פעילות אחרונה: ${ago(m.last)}</p></div><span class="pill ${st[0]}">${st[1]}</span></div>
+  <div class="row" style="margin-bottom:16px"><span style="font-size:2.6rem">${esc(s.avatar)}</span><div><h2 style="font-size:1.6rem">${esc(s.name)}</h2><p class="muted">${s.school?'🏫 '+esc(s.school)+' · ':''}${s.cls?esc(s.cls)+' · ':''}פעילות אחרונה: ${ago(m.last)}</p></div><span class="pill ${st[0]}">${st[1]}</span></div>
   <div class="kpis"><div class="kpi"><span class="l">שלבים שהושלמו</span><span class="v">${m.done}/5</span><span class="h">${pips(s)}${m.lists?` · ${m.ldone}/${m.lists} רשימות`:''}</span></div>
    <div class="kpi"><span class="l">דיוק בניסיון ראשון</span><span class="v">${pct(m.acc)}</span><span class="h">${m.ok} מתוך ${m.att} ניסיונות</span></div>
    <div class="kpi"><span class="l">מילים שנשלטו</span><span class="v">${m.mast}/${m.total}</span><span class="h">${m.seen} מילים נחשפו</span></div>
@@ -1601,7 +1638,8 @@ function vTDetail(){ const T=App.t; const s=(T.demo?DEMO:Store.students)[T.detai
     ${STAGES.map(t=>({k:t.n,label:`${t.icon} ${t.n} · ${t.name}`})).concat(lists.map(l=>({k:'L'+l.id,label:'📝 '+esc(l.name)}))).map(r=>{const x=s.stages&&s.stages[r.k];return `<tr><td>${r.label}</td><td>${x&&x.done?'⭐'.repeat(x.stars):'<span class="muted">—</span>'}</td><td class="num">${x&&x.last?x.last.mist:'—'}</td><td class="num">${x&&x.best?Math.floor(x.best/60)+':'+String(x.best%60).padStart(2,'0'):'—'}</td><td class="num">${x?x.plays+' פעמים':'—'}</td></tr>`;}).join('')}</tbody></table></div></div>
    <div class="tbox"><h2>דקות תרגול ביום <small>14 ימים אחרונים</small></h2>${colChart(classDays([s]),'דקות תרגול ביום')}
     <h2 style="margin-top:18px">מילים לחיזוק</h2>${weak.length?`<div class="row">${weak.map(w=>`<span class="pill bad">${w.img?'':esc(w.emo)} ${esc(w.en)} · ${esc(w.he)}</span>`).join('')}</div><button class="btn small" style="margin-top:10px" data-act="t-weaklist" data-id="${s.id}">📝 יצירת רשימת תרגול מהמילים האלה</button>`:'<p class="muted">אין מילים שדורשות חיזוק כרגע.</p>'}</div></div>
-  ${T.demo?'':`<div class="tbox"><h2>ניהול</h2><form class="addform" data-form="t-rename"><input type="text" id="t-rename" maxlength="30" value="${esc(s.name)}" aria-label="שם"><button class="btn small" type="submit">שמירת שם</button></form>
+  ${T.demo?'':`<div class="tbox"><h2>ניהול</h2><form class="addform" data-form="t-rename"><input type="text" id="t-rename" maxlength="30" value="${esc(s.name)}" aria-label="שם" placeholder="שם"><input type="text" id="t-rschool" maxlength="40" value="${esc(s.school||'')}" aria-label="בית ספר" placeholder="בית ספר" list="t-schools2" autocomplete="off"><input type="text" id="t-rcls" maxlength="12" value="${esc(s.cls||'')}" aria-label="כיתה" placeholder="כיתה" style="max-width:110px" autocomplete="off"><datalist id="t-schools2">${schoolsKnown().map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist><button class="btn small" type="submit">שמירה</button></form>
+   <div class="row" style="margin:10px 0"><span>🔐 התמונות הסודיות: ${s.secret?`<b style="font-size:1.5rem;letter-spacing:4px">${secretPics(s)}</b>`:'<span class="muted">עוד לא נבחרו (התלמיד/ה יבחר/תבחר בכניסה הבאה)</span>'}</span>${s.secret?`<button class="btn small" data-act="t-secret0" data-id="${s.id}">איפוס התמונות</button>`:''}</div>
    ${c?`<div class="confirm"><b>${c==='reset'?'לאפס את כל ההתקדמות של '+esc(s.name)+'?':'למחוק את '+esc(s.name)+' לגמרי?'}</b><span>אי אפשר לבטל.</span><span class="spacer"></span><button class="btn small danger" data-act="t-do" data-id="${s.id}">${c==='reset'?'כן, לאפס':'כן, למחוק'}</button><button class="btn small" data-act="t-cancel">ביטול</button></div>`
      :`<div class="row"><button class="btn small" data-act="t-ask" data-type="reset" data-id="${s.id}">איפוס התקדמות</button><button class="btn small ghost" data-act="t-ask" data-type="delete" data-id="${s.id}" style="color:var(--bad)">מחיקת תלמיד/ה</button></div>`}</div>`}`; }
 
@@ -1698,7 +1736,7 @@ function vTSettings(){ const S=Store.settings,T=App.t; const c=T.confirm&&T.conf
    <div class="tbox set"><h2>הסיסמה הראשית <small>רק לך</small></h2><form class="set" data-form="t-pin"><div class="field"><label for="t-pin1">סיסמה ראשית חדשה (4 ספרות)</label><input type="password" inputmode="numeric" id="t-pin1" maxlength="4" pattern="[0-9]{4}" required></div>
     <div class="field"><label for="t-pin2">שוב, לאימות</label><input type="password" inputmode="numeric" id="t-pin2" maxlength="4" pattern="[0-9]{4}" required></div><div><button class="btn primary small" type="submit">שמירת סיסמה</button></div></form>
     <p class="note">הסיסמה הראשית פותחת את הלוח המלא, ורק ממנו אפשר לשנות את קוד המורים. היא מונעת כניסה בטעות, אבל היא לא סיסמה מאובטחת.</p></div>
-   ${GCLIENT?vGoogleBox():''}
+   <div class="tbox set"><h2>מורים, מנהלים ובתי ספר</h2><p class="note">ניהול המורים, אישור בקשות הצטרפות, מנהלים ובתי ספר נמצאים בלשונית "מורים ובתי ספר".</p><button class="btn small" data-act="t-tab" data-tab="teachers">למורים ובתי ספר</button></div>
    <div class="tbox set"><h2>קוד מורים משותף</h2>${S.tcode?`<p>הקוד הנוכחי: <span class="codechip"><b>${esc(S.tcode)}</b></span></p>`:'<p class="note" style="color:var(--warn)">עוד לא הוגדר קוד מורים, ולכן מורים לא יכולים להיכנס.</p>'}
     <form class="set" data-form="t-tcode"><div class="field"><label for="t-tc1">${S.tcode?'קוד מורים חדש':'קוד מורים'} (4 ספרות)</label><input type="text" inputmode="numeric" id="t-tc1" maxlength="4" pattern="[0-9]{4}" required autocomplete="off"></div><div class="row"><button class="btn primary small" type="submit">שמירת קוד מורים</button>${S.tcode?'<button type="button" class="btn small ghost" data-act="t-tcode-off">ביטול הקוד</button>':''}</div></form>
     <p class="note">כל המורים נכנסים עם אותו קוד דרך "כניסת מורים", ורואים רק את מרחב המורים: יצירה, עריכה ומחיקה של רשימות המילים שלהם. הקוד חייב להיות שונה מהסיסמה הראשית.</p></div>
@@ -1727,7 +1765,7 @@ function csv(){ const q=v=>'"'+String(v).replace(/"/g,'""')+'"'; const head=['ש
 
 /* ---------- moving data between the classroom file and the online dashboard ---------- */
 function exportData(){ return JSON.stringify({app:'word-island',v:2,at:Date.now(),from:STANDALONE?'classroom':'online',students:Store.students,lists:Store.lists,media:Store.media}); }
-function mergeStudent(a,b){ if(!a) return JSON.parse(JSON.stringify(b)); const o=JSON.parse(JSON.stringify(a)); if((b.updatedAt||0)>(a.updatedAt||0)){ o.name=b.name; o.avatar=b.avatar; }
+function mergeStudent(a,b){ if(!a) return JSON.parse(JSON.stringify(b)); const o=JSON.parse(JSON.stringify(a)); if((b.updatedAt||0)>(a.updatedAt||0)){ o.name=b.name; o.avatar=b.avatar; for(const f of ['school','cls','secret']) if(b[f]!==undefined) o[f]=b[f]; } else { for(const f of ['school','cls','secret']) if(o[f]===undefined&&b[f]!==undefined) o[f]=b[f]; }
   o.words=o.words||{}; for(const [k,v] of Object.entries(b.words||{})){ const x=o.words[k]||{}; for(const [f,n] of Object.entries(v||{})) if(typeof n==='number') x[f]=Math.max(x[f]||0,n); o.words[k]=x; }
   o.stages=o.stages||{}; for(const [k,v] of Object.entries(b.stages||{})){ const x=o.stages[k]; if(!x){ o.stages[k]=v; continue; }
     x.done=!!(x.done||v.done); x.stars=Math.max(x.stars||0,v.stars||0); x.plays=Math.max(x.plays||0,v.plays||0); if(v.best) x.best=x.best?Math.min(x.best,v.best):v.best;
@@ -1750,28 +1788,54 @@ function jwtPayload(t){ try{ const b=t.split('.')[1].replace(/-/g,'+').replace(/
 const normEmail=e=>String(e||'').trim().toLowerCase();
 function gRole(email){ const S=Store.settings; email=normEmail(email); if(!email) return null;
   if((S.admins||[]).map(normEmail).includes(email)) return {role:'admin'};
-  const t=(S.teachers||[]).find(x=>normEmail(x.email)===email); if(t) return {role:'teacher',entry:t};
+  const t=(S.teachers||[]).find(x=>normEmail(x.email)===email); if(t) return {role:t.status==='pending'?'pending':t.status==='off'?'off':'teacher',entry:t};
   const dom=email.split('@')[1]; if(dom&&(S.gDomains||[]).map(d=>String(d).toLowerCase().replace(/^@/,'')).includes(dom)) return {role:'teacher',entry:null};
   return null; }
-function gSignedIn(resp){ const p=jwtPayload(resp&&resp.credential); const msg=t=>{ App.gMsg=t; const m=document.getElementById('gmsg'); if(m) m.textContent=t; };
+async function gSignedIn(resp){ const p=jwtPayload(resp&&resp.credential); const msg=t=>{ App.gMsg=t; const m=document.getElementById('gmsg'); if(m) m.textContent=t; };
   if(!p||p.aud!==GCLIENT||(p.exp&&p.exp*1000<Date.now())||p.email_verified===false){ msg('הכניסה נכשלה. נסו שוב.'); return; }
-  const r=gRole(p.email); if(!r){ msg('החשבון '+p.email+' עוד לא אושר כמורה. בקשו ממנהל המערכת להוסיף אותו בהגדרות.'); Sound.sfx('bad'); return; }
-  App.gMsg=''; App.gUser={email:normEmail(p.email),name:p.name||'',pic:p.picture||''}; App.pin=''; App.t.detail=null; App.t.edit=null; App.t.confirm=null;
+  msg('בודק...'); if(GAS&&Store.pull){ try{ await Store.pull(); }catch(e){} }
+  const email=normEmail(p.email); const r=gRole(email);
+  if(!r){ App.gMsg=''; App.gReq={email,name:p.name||'',given:p.given_name||''}; App.go('treq'); return; }
+  if(r.role==='pending'){ msg('הבקשה שלך להצטרף כמורה ממתינה לאישור של מנהל המערכת. אחרי האישור נכנסים עם אותו כפתור.'); return; }
+  if(r.role==='off'){ msg('החשבון '+email+' מושהה. פנו למנהל המערכת.'); Sound.sfx('bad'); return; }
+  App.gMsg=''; App.gUser={email,name:p.name||'',pic:p.picture||''}; App.pin=''; App.t.detail=null; App.t.edit=null; App.t.confirm=null;
   if(r.role==='admin'){ App.t.role='admin'; ensureCodes(); App.go('teacher'); toast('שלום '+(p.given_name||p.name||'')); return; }
-  const e=r.entry; const me=e&&e.school?{name:e.name||p.name||'',school:e.school,email:App.gUser.email}:(App.tme&&normEmail(App.tme.email)===App.gUser.email?App.tme:null);
-  if(me) setTMe(me); else { App.tme=null; App.gPrefill={name:(e&&e.name)||p.name||'',school:(e&&e.school)||''}; }
+  const e=r.entry; const me=e&&e.school&&e.name&&e.city?{name:e.name,school:e.school,city:e.city||'',grades:e.grades||[],email}:null;
+  if(me) setTMe(me); else { App.tme=null; App.gPrefill={name:(e&&e.name)||p.name||'',school:(e&&e.school)||'',city:(e&&e.city)||'',grades:(e&&e.grades)||[]}; }
+  if(e) tMut(T=>{ const x=T.find(y=>normEmail(y.email)===email); if(x) x.last=Date.now(); },true);
+  else if(r.role==='teacher') tMut(T=>{ if(!T.some(y=>normEmail(y.email)===email)) T.push({email,name:p.name||'',school:'',via:'domain',at:Date.now(),last:Date.now()}); },true);
   App.t.role='teacher'; App.t.who=!me; ensureCodes(); App.go('tspace'); toast('שלום '+(p.given_name||p.name||'')); }
-function render(){ const v={who:vWho,newp:vNew,map:vMap,learn:vLearn,match:vMatch,quiz:vQuiz,done:vDone,bank:vBank,cert:vCert,pin:vPin,teacher:vTeacher,world:vWorld,lmap:vLMap,bmap:vBMap,lmeet:vLMeet,lfind:vLFind,lbuild:vLBuild,ldone:vLDone,harbor:vHarbor,tspace:vTSpace}[App.screen]||vWho;
+/* teachers live in settings.teachers; pull first so two computers don't overwrite each other */
+async function tMut(fn,quiet){ if(GAS&&Store.pull&&!quiet){ try{ await Store.pull(); }catch(e){} } const T=JSON.parse(JSON.stringify(Store.settings.teachers||[])); fn(T); Store.setSettings({teachers:T}); }
+const GRADES=['א','ב','ג','ד','ה','ו','ז','ח','ט'];
+function tFields(v,pre){ const sc=schoolsKnown(); v=v||{}; const g=v.grades||[];
+  return `<div class="field"><label for="${pre}-name">השם שלך, כמו שהתלמידים מכירים</label><input type="text" id="${pre}-name" maxlength="30" required autocomplete="off" value="${esc(v.name||'')}" placeholder="למשל: המורה דנה"></div>
+   <div class="field"><label for="${pre}-school">בית הספר</label><input type="text" id="${pre}-school" maxlength="40" required autocomplete="off" list="${pre}-schools" value="${esc(v.school||'')}" placeholder="שם בית הספר"><datalist id="${pre}-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
+    ${sc.length?`<div class="row" style="gap:8px">${sc.map(x=>`<button type="button" class="btn small" data-act="ts-school" data-in="${pre}-school" data-v="${esc(x)}">🏫 ${esc(x)}</button>`).join('')}</div><p class="note">אם בית הספר כבר מופיע, בחרו אותו מהרשימה. כך כל המורים והתלמידים של אותו בית ספר יופיעו יחד.</p>`:''}</div>
+   <div class="field"><label for="${pre}-city">יישוב</label><input type="text" id="${pre}-city" maxlength="30" required autocomplete="off" value="${esc(v.city||'')}" placeholder="למשל: נשר" style="max-width:260px"></div>
+   <fieldset class="field"><legend>שכבות שאני מלמד/ת (לא חובה)</legend><div class="row" style="gap:6px">${GRADES.map(x=>`<label class="toggle"><input type="checkbox" name="${pre}-g" value="${x}" ${g.includes(x)?'checked':''}>${x}׳</label>`).join('')}</div></fieldset>`; }
+function readTFields(pre){ const v=id=>{ const el=document.getElementById(pre+'-'+id); return el?el.value.trim():''; };
+  return {name:v('name').slice(0,30),school:v('school').slice(0,40),city:v('city').slice(0,30),grades:[...document.querySelectorAll(`input[name="${pre}-g"]:checked`)].map(x=>x.value)}; }
+function vTReq(){ const q=App.gReq;
+  return `<div class="kbar"><button class="btn small" data-act="treq-x">→ חזרה</button></div><div class="t">${q.sent?`<div class="tbox empty" style="max-width:600px;margin-inline:auto"><div class="ic">📨</div><h2 style="font-size:1.3rem">הבקשה נשלחה</h2><p class="muted" style="max-width:46ch">מנהל המערכת יראה אותה בלוח המורה, בלשונית "מורים ובתי ספר". אחרי האישור נכנסים עם אותו כפתור Google.</p><button class="btn small" data-act="treq-x">סגירה</button></div>`
+   :`<form class="tbox stack" data-form="treq" style="max-width:640px;margin-inline:auto"><h2 style="font-size:1.3rem">בקשה להצטרף כמורה</h2>
+    <p class="note">החשבון <b dir="ltr">${esc(q.email)}</b> עוד לא מאושר. מלאו כמה פרטים, ומנהל המערכת יאשר אתכם ויצרף אתכם לבית הספר הנכון.</p>
+    ${tFields({name:q.name},'tq')}<div class="row"><button class="btn primary" type="submit">שליחת הבקשה</button><button type="button" class="btn small" data-act="treq-x">ביטול</button></div></form>`}</div>`; }
+function render(){ const v={who:vWho,newp:vNew,map:vMap,learn:vLearn,match:vMatch,quiz:vQuiz,done:vDone,bank:vBank,cert:vCert,pin:vPin,teacher:vTeacher,world:vWorld,lmap:vLMap,bmap:vBMap,lmeet:vLMeet,lfind:vLFind,lbuild:vLBuild,ldone:vLDone,harbor:vHarbor,tspace:vTSpace,skey:vKey,treq:vTReq}[App.screen]||vWho;
   if((App.kidScreen()||['learn','match','quiz'].includes(App.screen))&&!App.s){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
   if(['learn','match','quiz','done'].includes(App.screen)&&!App.g){ App.screen='map'; $('#app').innerHTML=vMap(); return; }
   if(['lmeet','lfind','lbuild','ldone'].includes(App.screen)&&!App.lg){ App.screen='world'; $('#app').innerHTML=vWorld(); return; }
   if(App.screen==='tspace'&&App.t.role!=='teacher'){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
+  if((App.screen==='skey'&&!(App.k&&Store.students[App.k.id]))||(App.screen==='treq'&&!App.gReq)){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
   $('#app').innerHTML=v(); if(App.screen==='pin') setTimeout(mountGoogle,0); }
 
 const ACT={
   home:()=>{ if(App.s){Store.save(App.s.id,true);} App.sid=null; App.go('who'); },
-  pick:el=>{ App.sid=el.dataset.id; Sound.sfx('tap'); App.go('world'); },
-  newp:()=>{ App.np.avatar=AVATARS[Math.floor(Math.random()*AVATARS.length)]; App.go('newp'); setTimeout(()=>{const i=$('#np-name'); i&&i.focus();},50); },
+  pick:el=>{ const s=Store.students[el.dataset.id]; if(!s) return; Sound.sfx('tap'); App.k={id:s.id,mode:s.secret?'check':'set',a:[],first:null,fails:0}; App.go('skey'); },
+  kp:el=>kPick(+el.dataset.i), kback:()=>{ const k=App.k; if(k&&!k.busy){ k.a.pop(); k.msg=''; render(); } },
+  'w-school':el=>{ setDevSchool(el.dataset.v); Sound.sfx('tap'); render(); window.scrollTo({top:0}); },
+  'np-sch':el=>{ App.np.school=el.dataset.v; Sound.sfx('tap'); document.querySelectorAll('[data-act=np-sch]').forEach(b=>{ const on=b===el; b.setAttribute('aria-pressed',on); b.querySelector('.ic').textContent=on?'✅':'🏫'; }); },
+  newp:()=>{ App.np={avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)]}; App.go('newp'); setTimeout(()=>{const i=$('#np-name'); i&&i.focus();},50); },
   npav:el=>{ App.np.avatar=el.dataset.a; document.querySelectorAll('.avatars button').forEach(b=>b.setAttribute('aria-pressed',b===el)); Sound.sfx('tap'); },
   map:()=>{ if(App.s) Store.save(App.s.id,true); App.go('map'); },
   stage:el=>{ const k=el.dataset.k; startStage(k.startsWith('L:')?k:+k,el.dataset.from||null); },
@@ -1853,9 +1917,15 @@ const ACT={
 };
 ACT.pa=0;
 const FORM={
-  newp:f=>{ const n=$('#np-name').value.trim(); if(!n) return; const id=Store.add(n,App.np.avatar); App.sid=id; App.go('world'); Sound.phrase('hello'); FX.burst(60); },
-  't-add':f=>{ const i=$('#t-new-name'); const n=i.value.trim(); if(!n) return; Store.add(n,AVATARS[Math.floor(Math.random()*AVATARS.length)]); i.value=''; App.t.demo=false; toast(n+' נוסף/ה'); render(); setTimeout(()=>{const j=$('#t-new-name'); j&&j.focus();},30); },
-  't-rename':f=>{ const s=Store.students[App.t.detail]; const n=$('#t-rename').value.trim(); if(!s||!n) return; s.name=n.slice(0,30); Store.save(s.id,true); $('#t-rename').blur(); toast('השם נשמר'); render(); },
+  newp:f=>{ const n=$('#np-name').value.trim().slice(0,30); if(!n) return; const sc=schoolsKnown(); const si=$('#np-school'); const school=sc.length?(App.np.school||''):(si?si.value.trim().slice(0,40):'');
+    if(sc.length&&!school){ toast('בחרו את בית הספר שלכם'); return; }
+    if(Object.values(Store.students).some(x=>x.name.trim()===n&&String(x.school||'').trim()===school)){ toast('כבר יש שחקן בשם הזה. אם זה אתם, חזרו ובחרו את השם שלכם. אם לא, הוסיפו אות משם המשפחה.'); return; }
+    const cls=($('#np-cls')&&$('#np-cls').value.trim().slice(0,12))||''; const extra={}; if(school) extra.school=school; if(cls) extra.cls=cls;
+    const id=Store.add(n,App.np.avatar,extra); if(school) setDevSchool(school); App.k={id,mode:'set',a:[],first:null,fails:0,isNew:true}; App.go('skey'); },
+  't-add':f=>{ const i=$('#t-new-name'); const n=i.value.trim(); if(!n) return; const sch=($('#t-new-school')&&$('#t-new-school').value.trim().slice(0,40))||'', cls=($('#t-new-cls')&&$('#t-new-cls').value.trim().slice(0,12))||''; const ex={}; if(sch) ex.school=sch; if(cls) ex.cls=cls;
+    if(Object.values(Store.students).some(x=>x.name.trim()===n&&String(x.school||'').trim()===sch)){ toast('כבר יש תלמיד/ה בשם הזה בבית הספר הזה'); return; } Store.add(n,AVATARS[Math.floor(Math.random()*AVATARS.length)],ex); i.value=''; const c=$('#t-new-cls'); if(c) c.value=''; App.t.demo=false; toast(n+' נוסף/ה'); render(); setTimeout(()=>{const j=$('#t-new-name'); j&&j.focus();},30); },
+  't-rename':f=>{ const s=Store.students[App.t.detail]; const n=$('#t-rename').value.trim(); if(!s||!n) return; s.name=n.slice(0,30); const sc=($('#t-rschool')&&$('#t-rschool').value.trim().slice(0,40))||'', cl=($('#t-rcls')&&$('#t-rcls').value.trim().slice(0,12))||'';
+    if(sc) s.school=sc; else delete s.school; if(cl) s.cls=cl; else delete s.cls; Store.save(s.id,true); document.activeElement&&document.activeElement.blur(); toast('הפרטים נשמרו'); render(); },
   't-pin':f=>{ const a=$('#t-pin1').value,b=$('#t-pin2').value; if(!/^\d{4}$/.test(a)){ toast('הקוד צריך להיות 4 ספרות'); return; } if(a!==b){ toast('שני הקודים לא זהים'); return; } if(a===String(Store.settings.tcode||'')){ toast('הסיסמה הראשית חייבת להיות שונה מקוד המורים'); return; } Store.setSettings({pin:a}); $('#t-pin1').value=$('#t-pin2').value=''; document.activeElement&&document.activeElement.blur(); toast('הקוד החדש נשמר'); }
 };
 /* =====================================================================
@@ -2052,6 +2122,7 @@ function vLDone(){ const g=App.lg,r=g.result,s=App.s,A=g.kind==='A'; const N=A?L
 /* ---------- HARBOR (student side: school → teacher → list, or a code) ---------- */
 function openHarbor(){ App.h={step:'school',school:'',teacher:'',code:'',msg:''}; const p=App.s&&App.s.pref;
   if(p&&pickLists().some(l=>l.school.trim()===p.school&&l.teacher.trim()===p.teacher)) Object.assign(App.h,{step:'lists',school:p.school,teacher:p.teacher});
+  else { const ms=App.s&&String(App.s.school||'').trim(); if(ms&&pickLists().some(l=>l.school.trim()===ms)) Object.assign(App.h,{step:'teacher',school:ms}); }
   App.go('harbor'); }
 function vHarbor(){ const h=App.h||(App.h={step:'school',school:'',teacher:'',code:'',msg:''}),s=App.s; const pl=pickLists(); let main='';
   const crumbs=()=>`<div class="crumbs"><button class="btn small ghost" data-act="h-step" data-step="school">🏫 ${esc(h.school)}</button>${h.step==='lists'?`<span aria-hidden="true">‹</span><button class="btn small ghost" data-act="h-step" data-step="teacher">🧑‍🏫 ${esc(h.teacher)}</button>`:''}</div>`;
@@ -2081,18 +2152,55 @@ const ownList=l=>!!(App.tme&&l&&String(l.teacher||'').trim()===App.tme.name&&Str
 function genCode(){ const used=new Set(Object.values(Store.lists).map(l=>String(l.code||''))); for(let i=0;i<500;i++){ const c=String(1000+Math.floor(Math.random()*9000)); if(!used.has(c)) return c; } return String(Date.now()).slice(-4); }
 function ensureCodes(){ if(Store.readOnly) return; let ch=false; for(const l of Object.values(Store.lists)){ if(!l.code){ l.code=genCode(); ch=true; Store.put('lists',l.id,l); } } if(ch) Store.saveLocal(); }
 function modeBadge(){ return GAS?(Store.online===false?'<span class="mode warn">⚠ אין חיבור לגיליון. השינויים נשמרים זמנית במחשב הזה</span>':'<span class="mode cloud">☁ נשמר בגיליון Google שלך</span>'):STANDALONE?'<span class="mode">💻 גרסת כיתה · נשמר במחשב הזה</span>':Store.mode==='cloud'?(Store.readOnly?'<span class="mode warn">⚠ צפייה בלבד: שינויים נשמרים רק במחשב הזה</span>':'<span class="mode cloud">☁ מסונכרן בין כל המחשבים</span>'):'<span class="mode">💻 נשמר בדפדפן הזה בלבד</span>'; }
-const schoolsKnown=()=>[...new Set(Object.values(Store.lists).map(l=>String(l.school||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+const schoolsKnown=()=>{ const S=Store.settings; const all=[...Object.values(Store.lists).map(l=>l.school),...(S.schools||[]),...(S.teachers||[]).filter(t=>t.status!=='pending').map(t=>t.school),...Object.values(Store.students).map(x=>x.school)];
+  return [...new Set(all.map(x=>String(x||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he')); };
 function listChips(l){ return `<div class="chips">${listWords(l).map(w=>`<span>${w.img?`<img class="wimg" src="${esc(w.img)}" alt="">`:esc(w.emo||'📝')} <b class="en">${esc(w.en)}</b> ${esc(w.he)}${w.audio?' 🎙️':''}</span>`).join('')}</div>`; }
 function listTags(l){ return `<div class="tags">${l.school?`<span class="pill neutral">🏫 ${esc(l.school)}</span>`:''}${l.teacher?`<span class="pill neutral">🧑‍🏫 ${esc(l.teacher)}</span>`:''}${l.code?`<span class="codechip">קוד <b>${esc(l.code)}</b></span>`:''}</div>`; }
+function moveLists(on,os,nn,ns){ for(const l of Object.values(Store.lists)){ if(String(l.teacher||'').trim()===on&&String(l.school||'').trim()===os){ l.teacher=nn; l.school=ns; l.updatedAt=Date.now(); delete l.cloud; Store.put('lists',l.id,l); } } Store.saveLocal(); }
+function renameSchool(o,n){ for(const l of Object.values(Store.lists)) if(String(l.school||'').trim()===o){ l.school=n; l.updatedAt=Date.now(); delete l.cloud; Store.put('lists',l.id,l); }
+  for(const s of Object.values(Store.students)) if(String(s.school||'').trim()===o){ s.school=n; Store.save(s.id,true); }
+  for(const s of Object.values(Store.students)) if(s.pref&&s.pref.school===o){ s.pref.school=n; Store.save(s.id); }
+  const sc=(Store.settings.schools||[]).map(x=>x===o?n:x); Store.setSettings({schools:[...new Set(sc)]});
+  tMut(T=>{ for(const t of T) if(String(t.school||'').trim()===o) t.school=n; });
+  if(App.tme&&App.tme.school===o) setTMe({...App.tme,school:n}); if(devSchool()===o) setDevSchool(n); Store.saveLocal(); }
+const fmtDate=t=>t?new Date(t).toLocaleDateString('he-IL'):'—';
+function vTTeachers(){ const S=Store.settings,T=App.t; const all=(S.teachers||[]).slice().sort((a,b)=>String(a.school||'').localeCompare(String(b.school||''),'he')||String(a.name||'').localeCompare(String(b.name||''),'he'));
+  const pend=all.filter(t=>t.status==='pending'), act=all.filter(t=>t.status!=='pending'); const sc=schoolsKnown();
+  const nL=t=>Object.values(Store.lists).filter(l=>t.name&&String(l.teacher||'').trim()===t.name&&String(l.school||'').trim()===t.school).length;
+  const gr=t=>(t.grades||[]).length?(t.grades||[]).map(x=>x+'׳').join(' '):'—';
+  const conf=e=>T.confirm&&T.confirm.type==='tm'&&T.confirm.id===e;
+  const row=t=>{ const e=normEmail(t.email);
+    if(T.tedit===e) return `<tr><td colspan="7"><form class="stack" data-form="tm-save" style="max-width:640px"><p class="note" dir="ltr" style="text-align:end">${esc(e)}</p>${tFields(t,'tm')}<div class="row"><button class="btn primary small" type="submit">שמירה</button><button type="button" class="btn small" data-act="tm-x">ביטול</button></div></form></td></tr>`;
+    return `<tr><td><b>${esc(t.name||'—')}</b>${t.status==='off'?' <span class="pill bad">מושהה</span>':!t.school?' <span class="pill warn">חסרים פרטים</span>':''}<div class="note" dir="ltr" style="margin:0;text-align:end">${esc(e)}</div></td><td>${t.school?'🏫 '+esc(t.school):'<span class="muted">—</span>'}</td><td>${esc(t.city||'—')}</td><td>${gr(t)}</td><td class="num">${nL(t)}</td><td>${t.last?ago(t.last):'<span class="muted">עוד לא נכנס/ה</span>'}</td>
+     <td>${conf(e)?`<div class="row" style="gap:6px"><b>להסיר?</b><button class="btn small danger" data-act="tm-delok" data-e="${esc(e)}">כן</button><button class="btn small" data-act="t-cancel">לא</button></div>`:`<div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn small" data-act="tm-edit" data-e="${esc(e)}">עריכה</button><button class="btn small ghost" data-act="tm-off" data-e="${esc(e)}">${t.status==='off'?'הפעלה':'השהיה'}</button><button class="btn small ghost" style="color:var(--bad)" data-act="tm-del" data-e="${esc(e)}" aria-label="הסרה">✕</button></div>`}</td></tr>`; };
+  const cnt=x=>({t:all.filter(t=>t.status!=='pending'&&String(t.school||'').trim()===x).length,s:Object.values(Store.students).filter(s=>String(s.school||'').trim()===x).length,l:Object.values(Store.lists).filter(l=>String(l.school||'').trim()===x).length});
+  const A=S.admins||[], D=S.gDomains||[];
+  return `${pend.length?`<div class="tbox" style="margin-bottom:16px;border:2px solid var(--warn)"><h2>📨 בקשות הצטרפות <small>${pend.length}</small></h2><div class="stack" style="gap:10px">${pend.map(t=>{ const e=normEmail(t.email); return `<div class="row" style="gap:10px"><div style="flex:1;min-width:220px"><b>${esc(t.name)}</b> <span class="note" dir="ltr">${esc(e)}</span><div class="note" style="margin:0">🏫 ${esc(t.school||'—')} · ${esc(t.city||'—')} · שכבות: ${gr(t)} · ${fmtDate(t.at)}${t.school&&!sc.includes(t.school)?' · <b style="color:var(--warn)">בית ספר חדש</b>':''}</div></div>
+      <button class="btn small primary" data-act="tm-ok" data-e="${esc(e)}">✓ אישור</button><button class="btn small" data-act="tm-edit" data-e="${esc(e)}">תיקון פרטים</button><button class="btn small ghost" style="color:var(--bad)" data-act="tm-delok" data-e="${esc(e)}">דחייה</button></div>${T.tedit===e?`<form class="stack" data-form="tm-save" style="max-width:640px;margin-bottom:10px">${tFields(t,'tm')}<div class="row"><button class="btn primary small" type="submit">שמירה</button><button type="button" class="btn small" data-act="tm-x">ביטול</button></div></form>`:''}`; }).join('')}</div>
+      <p class="note">אפשר לתקן את שם בית הספר לפני האישור, כדי שהמורה יופיע/תופיע יחד עם שאר המורים מאותו בית ספר.</p></div>`:''}
+   <div class="tbox" style="margin-bottom:16px"><h2>🧑‍🏫 מורים <small>${act.length}</small></h2>
+    ${act.length?`<div class="tablewrap"><table><thead><tr><th>מורה</th><th>בית ספר</th><th>יישוב</th><th>שכבות</th><th>רשימות</th><th>כניסה אחרונה</th><th></th></tr></thead><tbody>${act.map(row).join('')}</tbody></table></div>`:'<p class="muted">עוד אין מורים. הוסיפו מורים כאן, או שהם ישלחו בקשה בכניסה הראשונה עם Google.</p>'}
+    <form class="stack" data-form="tm-add" style="margin-top:14px;max-width:760px"><b>הוספת מורים מאושרים</b><div class="addform" style="margin:0"><input type="text" id="tm-emails" dir="ltr" placeholder="teacher@school.org.il" autocomplete="off" required><input type="text" id="tm-nm" maxlength="30" placeholder="שם (לא חובה)" autocomplete="off"><input type="text" id="tm-sch" maxlength="40" placeholder="בית ספר (לא חובה)" list="tm-schools" autocomplete="off"><datalist id="tm-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist><button class="btn small primary" type="submit">הוספה</button></div>
+     <p class="note">אפשר להדביק כמה כתובות יחד, מופרדות בפסיק או בשורה חדשה. מורה שנוסף/ה כאן נכנס/ת מיד, ומשלים/ה את הפרטים בכניסה הראשונה.</p></form></div>
+   <div class="grid2" style="align-items:start"><div class="tbox"><h2>🏫 בתי ספר <small>${sc.length}</small></h2>
+    ${sc.length?`<div class="tablewrap"><table><thead><tr><th>בית ספר</th><th>מורים</th><th>תלמידים</th><th>רשימות</th><th></th></tr></thead><tbody>${sc.map(x=>{ const c=cnt(x);
+      return T.sedit===x?`<tr><td colspan="5"><form class="addform" data-form="sch-ren" style="margin:0"><input type="text" id="sch-new" maxlength="40" value="${esc(x)}" aria-label="שם חדש"><button class="btn small primary" type="submit">שמירה</button><button type="button" class="btn small" data-act="tm-x">ביטול</button></form><p class="note">השם יתעדכן אצל כל המורים, התלמידים והרשימות. אם תכתבו שם של בית ספר קיים, שני בתי הספר יתאחדו.</p></td></tr>`
+       :`<tr><td>${esc(x)}</td><td class="num">${c.t}</td><td class="num">${c.s}</td><td class="num">${c.l}</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn small" data-act="sch-edit" data-v="${esc(x)}">תיקון שם</button>${!c.t&&!c.s&&!c.l&&(S.schools||[]).includes(x)?`<button class="btn small ghost" style="color:var(--bad)" data-act="sch-del" data-v="${esc(x)}" aria-label="הסרה">✕</button>`:''}</div></td></tr>`; }).join('')}</tbody></table></div>`:'<p class="muted">עוד אין בתי ספר.</p>'}
+    <form class="addform" data-form="sch-add" style="margin-top:12px"><input type="text" id="sch-add-in" maxlength="40" placeholder="שם בית ספר חדש" autocomplete="off" required><button class="btn small" type="submit">הוספת בית ספר</button></form>
+    <p class="note">התלמידים בוחרים בית ספר מהרשימה הזו כשהם נכנסים למשחק.</p></div>
+   <div class="tbox set"><h2>🔑 מנהלים וכניסה עם Google</h2><p class="note">מנהלים רואים את כל לוח המורה, כולל הלשונית הזו.</p>
+    <div class="field">${A.length?`<div class="row" style="gap:6px">${A.map(e=>`<span class="pill neutral" dir="ltr">${esc(e)} <button class="btn small ghost" style="padding:0 6px;box-shadow:none" data-act="g-del" data-k="admins" data-v="${esc(e)}" aria-label="הסרה">✕</button></span>`).join('')}</div>`:'<p class="note" style="color:var(--warn)">עוד אין מנהל. הוסיפו את המייל שלכם, כדי שתוכלו להיכנס עם Google.</p>'}
+     <div class="addform" style="margin:0"><input type="text" id="g-admin" dir="ltr" placeholder="name@gmail.com" autocomplete="off"><button class="btn small" data-act="g-add" data-k="admins" data-in="g-admin">הוספת מנהל</button></div></div>
+    <div class="field"><span style="font-weight:500">אישור אוטומטי לכל המורים מדומיין</span>${D.length?`<div class="row" style="gap:6px">${D.map(d=>`<span class="pill neutral" dir="ltr">@${esc(d)} <button class="btn small ghost" style="padding:0 6px;box-shadow:none" data-act="g-del" data-k="gDomains" data-v="${esc(d)}" aria-label="הסרה">✕</button></span>`).join('')}</div>`:''}
+     <div class="addform" style="margin:0"><input type="text" id="g-domain" dir="ltr" placeholder="school.org.il" autocomplete="off"><button class="btn small" data-act="g-add" data-k="gDomains" data-in="g-domain">הוספת דומיין</button></div>
+     <p class="note">זהירות: אם גם לתלמידים יש חשבונות באותו דומיין, הם יוכלו להיכנס כמורים.</p></div>
+    ${GCLIENT?'':'<p class="note">הכפתור "כניסה עם Google" מופיע רק באתר עצמו, לא בתצוגה כאן.</p>'}</div></div>`; }
 function vTSpace(){ const T=App.t,me=App.tme;
   const head=`<div class="thead"><div><h1>מרחב המורים</h1><p class="muted">${me?`${esc(me.name)} · 🏫 ${esc(me.school)}`:'אי המילים'}</p></div>${modeBadge()}<span class="spacer"></span>${me&&!T.who&&!T.edit?'<button class="btn small" data-act="ts-who">החלפת שם / בית ספר</button>':''}<button class="btn small" data-act="t-exit">יציאה</button></div>`;
-  if(!me||T.who){ const sc=schoolsKnown();
-    return `<div class="t">${head}<form class="tbox stack" data-form="ts-me" style="max-width:600px"><h2 style="font-size:1.2rem">מי את/ה?</h2>
-      <p class="note">השם ובית הספר יופיעו על כל רשימה שתיצרו, וכך התלמידים ימצאו אותה. בכוונה אין כאן כיתות או רמות.</p>
-      <div class="field"><label for="ts-name">השם שלך, כמו שהתלמידים מכירים</label><input type="text" id="ts-name" maxlength="30" required autocomplete="off" value="${esc(me?me.name:(App.gPrefill&&App.gPrefill.name)||'')}" placeholder="למשל: המורה דנה"></div>
-      <div class="field"><label for="ts-school">בית הספר</label><input type="text" id="ts-school" maxlength="40" required autocomplete="off" list="ts-schools" value="${esc(me?me.school:(App.gPrefill&&App.gPrefill.school)||'')}" placeholder="שם בית הספר"><datalist id="ts-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
-       ${sc.length?`<div class="row" style="gap:8px">${sc.map(x=>`<button type="button" class="btn small" data-act="ts-school" data-v="${esc(x)}">🏫 ${esc(x)}</button>`).join('')}</div><p class="note">כדאי לבחור בית ספר קיים, כדי שכל המורים מאותו בית ספר יופיעו יחד.</p>`:''}</div>
-      <div class="row"><button class="btn primary" type="submit">שמירה</button>${me?'<button type="button" class="btn small" data-act="ts-cancel">ביטול</button>':''}</div></form></div>`; }
+  if(!me||T.who){ const v=me||App.gPrefill||{};
+    return `<div class="t">${head}<form class="tbox stack" data-form="ts-me" style="max-width:640px"><h2 style="font-size:1.2rem">${me?'הפרטים שלי':'ברוכים הבאים! כמה פרטים קצרים'}</h2>
+      <p class="note">השם ובית הספר יופיעו על כל רשימה שתיצרו, וכך התלמידים ימצאו אותה. היישוב והשכבות עוזרים למנהל לשייך אתכם למקום הנכון.</p>
+      ${tFields(v,'ts')}<div class="row"><button class="btn primary" type="submit">שמירה</button>${me?'<button type="button" class="btn small" data-act="ts-cancel">ביטול</button>':''}</div></form></div>`; }
   if(T.edit) return `<div class="t">${head}${vEditor()}</div>`;
   const mine=Object.values(Store.lists).filter(ownList).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   return `<div class="t">${head}<div class="row" style="margin-bottom:14px"><div style="flex:1;min-width:0"><h2 style="font-size:1.3rem">הרשימות שלי</h2><p class="note">התלמידים מוצאים את הרשימות ב"⚓ נמל המורה": בוחרים את בית הספר ואת השם שלך, או מקלידים את הקוד של הרשימה.</p></div><button class="btn primary small" data-act="le-new">＋ רשימה חדשה</button></div>
@@ -2141,17 +2249,54 @@ Object.assign(ACT,{
   'h-list':el=>hStart(Store.lists[el.dataset.id]),
   hk:el=>hKey(el.dataset.k),
   'ts-who':()=>{ App.t.who=true; render(); }, 'ts-cancel':()=>{ App.t.who=false; render(); },
-  'ts-school':el=>{ const i=$('#ts-school'); if(i) i.value=el.dataset.v; },
+  'ts-school':el=>{ const i=document.getElementById(el.dataset.in||'ts-school'); if(i) i.value=el.dataset.v; },
+  'treq-x':()=>{ App.gReq=null; App.go('pin'); },
+  't-sf':el=>{ App.t.school=el.dataset.v; render(); },
+  't-secret0':el=>{ const s=Store.students[el.dataset.id]; if(!s) return; delete s.secret; Store.save(s.id,true); toast('התמונות אופסו. בכניסה הבאה '+s.name+' יבחר/תבחר תמונות חדשות.'); render(); },
+  'tm-ok':el=>{ tMut(T=>{ const x=T.find(y=>normEmail(y.email)===el.dataset.e); if(x){ delete x.status; x.ok=Date.now(); } }).then(()=>{ toast('המורה אושר/ה'); render(); }); },
+  'tm-off':el=>{ tMut(T=>{ const x=T.find(y=>normEmail(y.email)===el.dataset.e); if(x){ if(x.status==='off') delete x.status; else x.status='off'; } }).then(()=>render()); },
+  'tm-del':el=>{ App.t.confirm={type:'tm',id:el.dataset.e}; render(); },
+  'tm-delok':el=>{ tMut(T=>{ const i=T.findIndex(y=>normEmail(y.email)===el.dataset.e); if(i>=0) T.splice(i,1); }).then(()=>{ App.t.confirm=null; toast('המורה הוסר/ה מהרשימה'); render(); }); },
+  'tm-edit':el=>{ App.t.tedit=el.dataset.e; App.t.confirm=null; render(); setTimeout(()=>{ const i=$('#tm-name'); i&&i.focus(); },30); },
+  'tm-x':()=>{ App.t.tedit=null; App.t.sedit=null; render(); },
+  'sch-edit':el=>{ App.t.sedit=el.dataset.v; render(); setTimeout(()=>{ const i=$('#sch-new'); i&&i.focus(); },30); },
+  'sch-del':el=>{ Store.setSettings({schools:(Store.settings.schools||[]).filter(x=>x!==el.dataset.v)}); toast('בית הספר הוסר'); render(); },
   't-tcode-off':()=>{ Store.setSettings({tcode:''}); toast('קוד המורים בוטל. מורים לא יוכלו להיכנס עד שתגדירו קוד חדש.'); render(); }
 });
 Object.assign(FORM,{
-  'ts-me':()=>{ const n=$('#ts-name').value.trim().slice(0,30), sc=$('#ts-school').value.trim().slice(0,40); if(!n||!sc) return; setTMe(App.gUser?{name:n,school:sc,email:App.gUser.email}:{name:n,school:sc});
-    if(App.gUser){ const T=(Store.settings.teachers||[]).slice(); const i=T.findIndex(x=>normEmail(x.email)===App.gUser.email); const rec={email:App.gUser.email,name:n,school:sc}; if(i>=0) T[i]={...T[i],...rec}; else T.push(rec); Store.setSettings({teachers:T}); } App.t.who=false; toast('שלום '+n); render(); },
+  'ts-me':()=>{ const v=readTFields('ts'); if(!v.name||!v.school||!v.city){ toast('מלאו שם, בית ספר ויישוב'); return; } const old=App.tme;
+    if(old&&(old.name!==v.name||old.school!==v.school)) moveLists(old.name,old.school,v.name,v.school);
+    setTMe(App.gUser?{...v,email:App.gUser.email}:v);
+    if(App.gUser){ const em=App.gUser.email; tMut(T=>{ const i=T.findIndex(x=>normEmail(x.email)===em); const rec={email:em,...v}; if(i>=0) T[i]={...T[i],...rec}; else T.push(rec); }); } App.t.who=false; toast('שלום '+v.name); render(); },
+  'treq':()=>{ const q=App.gReq; if(!q) return; const v=readTFields('tq'); if(!v.name||!v.school||!v.city){ toast('מלאו שם, בית ספר ויישוב'); return; }
+    tMut(T=>{ const i=T.findIndex(x=>normEmail(x.email)===q.email); const rec={email:q.email,...v,status:'pending',at:Date.now()}; if(i>=0){ if(T[i].status==='pending') T[i]={...T[i],...rec}; } else T.push(rec); }).then(()=>{ q.sent=true; render(); }); },
+  'tm-save':()=>{ const em=App.t.tedit; if(!em) return; const v=readTFields('tm'); if(!v.name||!v.school){ toast('צריך שם ובית ספר'); return; } const cur=(Store.settings.teachers||[]).find(x=>normEmail(x.email)===em);
+    if(cur&&cur.name&&cur.school&&(cur.name!==v.name||cur.school!==v.school)) moveLists(cur.name,cur.school,v.name,v.school);
+    tMut(T=>{ const x=T.find(y=>normEmail(y.email)===em); if(x) Object.assign(x,v); }).then(()=>{ App.t.tedit=null; toast('הפרטים נשמרו'); render(); }); },
+  'tm-add':()=>{ const raw=($('#tm-emails').value||'').split(/[\s,;]+/).map(normEmail).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)); if(!raw.length){ toast('כתבו כתובת מייל מלאה'); return; }
+    const sch=$('#tm-sch').value.trim().slice(0,40), nm=raw.length===1?$('#tm-nm').value.trim().slice(0,30):'';
+    tMut(T=>{ for(const e of raw){ const x=T.find(y=>normEmail(y.email)===e); if(x){ delete x.status; if(sch) x.school=sch; if(nm) x.name=nm; } else T.push({email:e,name:nm,school:sch,at:Date.now()}); } }).then(()=>{ toast(raw.length>1?`נוספו ${raw.length} מורים`:'המורה נוסף/ה'); render(); }); },
+  'sch-add':()=>{ const v=$('#sch-add-in').value.trim().slice(0,40); if(!v) return; if(schoolsKnown().includes(v)){ toast('בית הספר כבר קיים'); return; } Store.setSettings({schools:[...(Store.settings.schools||[]),v]}); toast('בית הספר נוסף'); render(); },
+  'sch-ren':()=>{ const o=App.t.sedit, n=$('#sch-new').value.trim().slice(0,40); if(!o||!n||n===o){ App.t.sedit=null; render(); return; } renameSchool(o,n); App.t.sedit=null; toast('בית הספר עודכן בכל המקומות'); render(); },
   't-tcode':()=>{ const a=$('#t-tc1').value.trim(); if(!/^\d{4}$/.test(a)){ toast('קוד המורים צריך להיות 4 ספרות'); return; }
     if(a===String(Store.settings.pin||'2008')){ toast('קוד המורים חייב להיות שונה מהסיסמה הראשית'); return; }
     Store.setSettings({tcode:a}); $('#t-tc1').value=''; document.activeElement&&document.activeElement.blur(); toast('קוד המורים נשמר'); render(); }
 });
 
+document.head.insertAdjacentHTML('beforeend',`<style>
+.skey{max-width:520px;margin:20px auto;display:grid;gap:12px;justify-items:center;text-align:center}
+.skav{font-size:3.4rem;line-height:1}
+.kdots{display:flex;gap:14px;direction:ltr}
+.kdots i{width:58px;height:58px;border-radius:16px;border:3px dashed var(--ink-soft);display:grid;place-items:center;font-size:2rem;font-style:normal}
+.kdots i.on{border-style:solid;border-color:var(--ink);background:var(--paper-2)}
+.pics{display:grid;grid-template-columns:repeat(3,88px);gap:12px;direction:ltr}
+.pics button{width:88px;height:88px;border:0;border-radius:22px;background:var(--card);box-shadow:0 5px 0 var(--line);font-size:2.8rem;cursor:pointer;transition:transform .08s}
+.pics button:active{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
+.choice[aria-pressed="true"]{outline:3px solid var(--good,#2a9d5c)}
+.sfilter{gap:6px;margin:-4px 0 14px}
+.badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--bad,#c0392b);color:#fff;font-size:.75rem;font-weight:700;margin-inline-start:4px}
+@media (max-width:420px){.pics{grid-template-columns:repeat(3,76px)}.pics button{width:76px;height:76px;font-size:2.4rem}}
+</style>`);
 const app=$('#app');
 document.addEventListener('pointerdown',()=>{ Sound.unlock(); lastInput=Date.now(); },{capture:true});
 document.addEventListener('keydown',e=>{ Sound.unlock(); lastInput=Date.now(); if(App.screen==='pin'){ if(/^[0-9]$/.test(e.key)) pinKey(e.key); else if(e.key==='Backspace') pinKey('back'); }
