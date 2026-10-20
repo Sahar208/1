@@ -1076,6 +1076,7 @@ const AUDIO = {
 "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr/82LEbwAAA0gAAAAAqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NgxHAAAANIAAAAAKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqTEFNRTMuMTAwqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//NixG8AAANIAAAAAKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqkxBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/zYsRvAAADSAAAAACqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqo="
 };
 const STANDALONE = false;
+const GCLIENT = ''.indexOf('.apps.googleusercontent.com')>0 ? '' : '';
 const API_BAKED = 'https://script.google.com/macros/s/AKfycbwJsZ1uHY07OKb3YtHlgmBFGoL8FvL6W_yjWQ77UBCqIr69LNeEeAP5zm0D2PnjglBb/exec'.indexOf('http')===0 ? 'https://script.google.com/macros/s/AKfycbwJsZ1uHY07OKb3YtHlgmBFGoL8FvL6W_yjWQ77UBCqIr69LNeEeAP5zm0D2PnjglBb/exec' : '';
 let API_LOCAL=''; try{ API_LOCAL=localStorage.getItem('wi-api')||''; }catch(e){}
 const API = API_LOCAL || API_BAKED;
@@ -1507,7 +1508,7 @@ function vCert(){ const s=App.s,m=summary(s);
    <div class="emos" aria-hidden="true">${WORDS.map(w=>w.emo).join(' ')}</div><button class="btn sun" data-act="amazing">🔊 שמעו מה אומרים לכם</button></div>`; }
 
 /* PIN */
-function vPin(){ return `<div class="kbar"><button class="btn small" data-act="home">→ חזרה</button></div><div class="pin panel"><div style="font-size:2.4rem">🔒</div><h2>כניסת מורים</h2><p class="muted">הקלידו את קוד המורים (4 ספרות)</p>
+function vPin(){ return `<div class="kbar"><button class="btn small" data-act="home">→ חזרה</button></div><div class="pin panel"><div style="font-size:2.4rem">🔒</div><h2>כניסת מורים</h2>${GCLIENT?`<div id="gbtn" style="min-height:44px;display:grid;place-items:center"></div><p class="note" id="gmsg" aria-live="polite">${esc(App.gMsg||'')}</p><p class="muted" style="margin-top:4px">או הקלידו קוד (4 ספרות)</p>`:'<p class="muted">הקלידו את קוד המורים (4 ספרות)</p>'}
   <div class="pindots" id="pindots">${[0,1,2,3].map(i=>`<i class="${i<App.pin.length?'on':''}"></i>`).join('')}</div>
   <div class="keys">${[1,2,3,4,5,6,7,8,9].map(k=>`<button data-act="key" data-k="${k}">${k}</button>`).join('')}<button data-act="key" data-k="back" aria-label="מחיקה">⌫</button><button data-act="key" data-k="0">0</button><span></span></div>
   <p class="pinmsg" id="pinmsg">${App.pinMsg}</p></div>`; }
@@ -1671,6 +1672,16 @@ function saveDraft(){ const d=App.t.edit; const words=d.words.filter(w=>w.en.tri
   const okMsg=App.t.role==='teacher'?'הרשימה נשמרה. הקוד לתלמידים: '+meta.code:'הרשימה נשמרה ומופיעה לתלמידים';
   App.t.edit=null; App.t.msg=''; toast(GAS&&Store.online===false?'הרשימה נשמרה במחשב הזה ותעלה לגיליון כשהחיבור יעבוד. '+(meta.code?'הקוד לתלמידים: '+meta.code:''):okMsg); render(); return true; }
 
+function vGoogleBox(){ const S=Store.settings; const T=S.teachers||[], A=S.admins||[], D=S.gDomains||[];
+  return `<div class="tbox set"><h2>כניסה עם Google</h2><p class="note">מורים לוחצים "כניסה עם Google" במסך כניסת המורים. נכנס רק מי שהמייל שלו מופיע כאן. הרשימה משותפת לכל המחשבים.</p>
+   <div class="field"><span style="font-weight:500">מנהלים (רואים את כל לוח המורה)</span>${A.length?`<div class="row" style="gap:6px">${A.map(e=>`<span class="pill neutral" dir="ltr">${esc(e)} <button class="btn small ghost" style="padding:0 6px;box-shadow:none" data-act="g-del" data-k="admins" data-v="${esc(e)}" aria-label="הסרה">✕</button></span>`).join('')}</div>`:'<p class="note" style="color:var(--warn)">עוד אין מנהל. הוסיפו את המייל שלכם, כדי שתוכלו להיכנס עם Google.</p>'}
+    <div class="addform" style="margin:0"><input type="text" id="g-admin" dir="ltr" placeholder="name@gmail.com" autocomplete="off"><button class="btn small" data-act="g-add" data-k="admins" data-in="g-admin">הוספת מנהל</button></div></div>
+   <div class="field"><span style="font-weight:500">מורים מאושרים (נכנסים למרחב המורים)</span>${T.length?`<div class="stack" style="gap:6px">${T.map(t=>`<div class="row" style="gap:8px"><span class="pill neutral" dir="ltr">${esc(t.email)}</span><span class="note">${esc(t.name||'')}${t.school?' · 🏫 '+esc(t.school):''}</span><button class="btn small ghost" style="padding:2px 8px;box-shadow:none" data-act="g-del" data-k="teachers" data-v="${esc(t.email)}" aria-label="הסרה">✕</button></div>`).join('')}</div>`:'<p class="note">עוד אין מורים ברשימה.</p>'}
+    <div class="addform" style="margin:0"><input type="text" id="g-teacher" dir="ltr" placeholder="teacher@school.org.il" autocomplete="off"><button class="btn small" data-act="g-add" data-k="teachers" data-in="g-teacher">הוספת מורה</button></div>
+    <p class="note">אפשר להדביק כמה כתובות יחד, מופרדות בפסיק או בשורה חדשה. את השם ובית הספר המורה ממלא/ת בכניסה הראשונה.</p></div>
+   <div class="field"><span style="font-weight:500">או: כל המורים מדומיין מסוים</span>${D.length?`<div class="row" style="gap:6px">${D.map(d=>`<span class="pill neutral" dir="ltr">@${esc(d)} <button class="btn small ghost" style="padding:0 6px;box-shadow:none" data-act="g-del" data-k="gDomains" data-v="${esc(d)}" aria-label="הסרה">✕</button></span>`).join('')}</div>`:''}
+    <div class="addform" style="margin:0"><input type="text" id="g-domain" dir="ltr" placeholder="school.org.il" autocomplete="off"><button class="btn small" data-act="g-add" data-k="gDomains" data-in="g-domain">הוספת דומיין</button></div>
+    <p class="note">זהירות: אם גם לתלמידים יש חשבונות באותו דומיין, הם יוכלו להיכנס כמורים. במקרה כזה עדיף רשימת מורים.</p></div></div>`; }
 function vTSettings(){ const S=Store.settings,T=App.t; const c=T.confirm&&T.confirm.type==='wipe'; const sp=S.speak||'auto';
   return `<div class="grid2" style="align-items:start">
    <div class="tbox set"><h2>בדיקת הגייה</h2><div class="radios">
@@ -1687,6 +1698,7 @@ function vTSettings(){ const S=Store.settings,T=App.t; const c=T.confirm&&T.conf
    <div class="tbox set"><h2>הסיסמה הראשית <small>רק לך</small></h2><form class="set" data-form="t-pin"><div class="field"><label for="t-pin1">סיסמה ראשית חדשה (4 ספרות)</label><input type="password" inputmode="numeric" id="t-pin1" maxlength="4" pattern="[0-9]{4}" required></div>
     <div class="field"><label for="t-pin2">שוב, לאימות</label><input type="password" inputmode="numeric" id="t-pin2" maxlength="4" pattern="[0-9]{4}" required></div><div><button class="btn primary small" type="submit">שמירת סיסמה</button></div></form>
     <p class="note">הסיסמה הראשית פותחת את הלוח המלא, ורק ממנו אפשר לשנות את קוד המורים. היא מונעת כניסה בטעות, אבל היא לא סיסמה מאובטחת.</p></div>
+   ${GCLIENT?vGoogleBox():''}
    <div class="tbox set"><h2>קוד מורים משותף</h2>${S.tcode?`<p>הקוד הנוכחי: <span class="codechip"><b>${esc(S.tcode)}</b></span></p>`:'<p class="note" style="color:var(--warn)">עוד לא הוגדר קוד מורים, ולכן מורים לא יכולים להיכנס.</p>'}
     <form class="set" data-form="t-tcode"><div class="field"><label for="t-tc1">${S.tcode?'קוד מורים חדש':'קוד מורים'} (4 ספרות)</label><input type="text" inputmode="numeric" id="t-tc1" maxlength="4" pattern="[0-9]{4}" required autocomplete="off"></div><div class="row"><button class="btn primary small" type="submit">שמירת קוד מורים</button>${S.tcode?'<button type="button" class="btn small ghost" data-act="t-tcode-off">ביטול הקוד</button>':''}</div></form>
     <p class="note">כל המורים נכנסים עם אותו קוד דרך "כניסת מורים", ורואים רק את מרחב המורים: יצירה, עריכה ומחיקה של רשימות המילים שלהם. הקוד חייב להיות שונה מהסיסמה הראשית.</p></div>
@@ -1730,12 +1742,31 @@ async function importData(text){ const d=JSON.parse(text); if(!d||d.app!=='word-
   rebuildCW(); return {ns,nl}; }
 
 /* ---------- render + events ---------- */
+function mountGoogle(){ if(!GCLIENT||App.screen!=='pin') return; const box=document.getElementById('gbtn'); if(!box) return;
+  const go=()=>{ try{ google.accounts.id.initialize({client_id:GCLIENT,callback:gSignedIn,auto_select:false,ux_mode:'popup'}); google.accounts.id.renderButton(box,{theme:'filled_blue',size:'large',shape:'pill',text:'signin_with',locale:'he'}); }catch(e){ box.textContent='הכניסה עם Google לא זמינה כרגע'; } };
+  if(window.google&&google.accounts&&google.accounts.id) return go();
+  if(!document.getElementById('gsi-js')){ const sc=document.createElement('script'); sc.id='gsi-js'; sc.src='https://accounts.google.com/gsi/client'; sc.async=true; sc.onload=()=>mountGoogle(); sc.onerror=()=>{ const b=document.getElementById('gbtn'); if(b) b.textContent='אין חיבור לשירות הכניסה של Google'; }; document.head.appendChild(sc); } }
+function jwtPayload(t){ try{ const b=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); return JSON.parse(decodeURIComponent(escape(atob(b+'==='.slice((b.length+3)%4))))); }catch(e){ return null; } }
+const normEmail=e=>String(e||'').trim().toLowerCase();
+function gRole(email){ const S=Store.settings; email=normEmail(email); if(!email) return null;
+  if((S.admins||[]).map(normEmail).includes(email)) return {role:'admin'};
+  const t=(S.teachers||[]).find(x=>normEmail(x.email)===email); if(t) return {role:'teacher',entry:t};
+  const dom=email.split('@')[1]; if(dom&&(S.gDomains||[]).map(d=>String(d).toLowerCase().replace(/^@/,'')).includes(dom)) return {role:'teacher',entry:null};
+  return null; }
+function gSignedIn(resp){ const p=jwtPayload(resp&&resp.credential); const msg=t=>{ App.gMsg=t; const m=document.getElementById('gmsg'); if(m) m.textContent=t; };
+  if(!p||p.aud!==GCLIENT||(p.exp&&p.exp*1000<Date.now())||p.email_verified===false){ msg('הכניסה נכשלה. נסו שוב.'); return; }
+  const r=gRole(p.email); if(!r){ msg('החשבון '+p.email+' עוד לא אושר כמורה. בקשו ממנהל המערכת להוסיף אותו בהגדרות.'); Sound.sfx('bad'); return; }
+  App.gMsg=''; App.gUser={email:normEmail(p.email),name:p.name||'',pic:p.picture||''}; App.pin=''; App.t.detail=null; App.t.edit=null; App.t.confirm=null;
+  if(r.role==='admin'){ App.t.role='admin'; ensureCodes(); App.go('teacher'); toast('שלום '+(p.given_name||p.name||'')); return; }
+  const e=r.entry; const me=e&&e.school?{name:e.name||p.name||'',school:e.school,email:App.gUser.email}:(App.tme&&normEmail(App.tme.email)===App.gUser.email?App.tme:null);
+  if(me) setTMe(me); else { App.tme=null; App.gPrefill={name:(e&&e.name)||p.name||'',school:(e&&e.school)||''}; }
+  App.t.role='teacher'; App.t.who=!me; ensureCodes(); App.go('tspace'); toast('שלום '+(p.given_name||p.name||'')); }
 function render(){ const v={who:vWho,newp:vNew,map:vMap,learn:vLearn,match:vMatch,quiz:vQuiz,done:vDone,bank:vBank,cert:vCert,pin:vPin,teacher:vTeacher,world:vWorld,lmap:vLMap,bmap:vBMap,lmeet:vLMeet,lfind:vLFind,lbuild:vLBuild,ldone:vLDone,harbor:vHarbor,tspace:vTSpace}[App.screen]||vWho;
   if((App.kidScreen()||['learn','match','quiz'].includes(App.screen))&&!App.s){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
   if(['learn','match','quiz','done'].includes(App.screen)&&!App.g){ App.screen='map'; $('#app').innerHTML=vMap(); return; }
   if(['lmeet','lfind','lbuild','ldone'].includes(App.screen)&&!App.lg){ App.screen='world'; $('#app').innerHTML=vWorld(); return; }
   if(App.screen==='tspace'&&App.t.role!=='teacher'){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
-  $('#app').innerHTML=v(); }
+  $('#app').innerHTML=v(); if(App.screen==='pin') setTimeout(mountGoogle,0); }
 
 const ACT={
   home:()=>{ if(App.s){Store.save(App.s.id,true);} App.sid=null; App.go('who'); },
@@ -1767,7 +1798,7 @@ const ACT={
   qplay:()=>qPlay(false), qslow:()=>qPlay(true), qpick:el=>qPick(el),
   bank:()=>App.go('bank'), cert:()=>{ App.go('cert'); setTimeout(()=>{FX.burst(200);Sound.phrase('amazing');},300); }, amazing:()=>Sound.phrase('amazing'),
   teacher:()=>{ App.pin=''; App.pinMsg=''; App.go('pin'); }, key:el=>pinKey(el.dataset.k),
-  't-exit':()=>{ App.t.demo=false; App.t.confirm=null; App.t.edit=null; App.t.role=null; App.t.who=false; App.go('who'); },
+  't-exit':()=>{ App.gUser=null; try{ window.google&&google.accounts&&google.accounts.id.disableAutoSelect(); }catch(e){} App.t.demo=false; App.t.confirm=null; App.t.edit=null; App.t.role=null; App.t.who=false; App.go('who'); },
   't-tab':el=>{ App.t.tab=el.dataset.tab; App.t.detail=null; App.t.confirm=null; render(); },
   't-demo':()=>{ App.t.demo=!App.t.demo; App.t.detail=null; render(); },
   't-open':el=>{ App.t.detail=el.dataset.id; App.t.confirm=null; render(); window.scrollTo({top:0}); },
@@ -1786,6 +1817,13 @@ const ACT={
   't-api-test':async()=>{ const o=$('#t-api-out'); o.textContent='בודק...'; await Store.pull(); o.textContent=Store.online?'✅ החיבור עובד':Store.apiErr==='old'?'❌ הכתובת עונה, אבל עם הקוד הישן. צריך פריסה חדשה עם Code.gs החדש.':'❌ אין תשובה מהכתובת'; render(); },
   't-api-save':async()=>{ const v=$('#t-api').value.trim(); if(v&&!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(v)){ toast('הכתובת צריכה להתחיל ב-https://script.google.com/macros/s/ ולהסתיים ב-exec'); return; }
     try{ if(v&&v!==API_BAKED) localStorage.setItem('wi-api',v); else localStorage.removeItem('wi-api'); }catch(e){} toast('נשמר. טוען מחדש...'); setTimeout(()=>location.reload(),700); },
+  'g-add':el=>{ const k=el.dataset.k, inp=document.getElementById(el.dataset.in); const raw=(inp&&inp.value||'').split(/[\s,;]+/).map(x=>x.trim().toLowerCase().replace(/^@/,'')).filter(Boolean);
+    const okE=x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x), okD=x=>/^[a-z0-9.-]+\.[a-z]{2,}$/.test(x); const vals=raw.filter(k==='gDomains'?okD:okE);
+    if(!vals.length){ toast(k==='gDomains'?'כתבו דומיין, למשל school.org.il':'כתבו כתובת מייל מלאה'); return; } const S=Store.settings;
+    if(k==='teachers'){ const T=(S.teachers||[]).slice(); for(const e of vals) if(!T.some(x=>normEmail(x.email)===e)) T.push({email:e,name:'',school:''}); Store.setSettings({teachers:T}); }
+    else { const L=(S[k]||[]).slice(); for(const v of vals) if(!L.includes(v)) L.push(v); Store.setSettings({[k]:L}); }
+    if(inp) inp.value=''; toast('נוסף'); render(); },
+  'g-del':el=>{ const k=el.dataset.k,v=el.dataset.v,S=Store.settings; if(k==='teachers') Store.setSettings({teachers:(S.teachers||[]).filter(x=>normEmail(x.email)!==normEmail(v))}); else Store.setSettings({[k]:(S[k]||[]).filter(x=>x!==v)}); render(); },
   't-fbadult':el=>{ Store.setSettings({fallbackAdult:el.checked}); },
   't-speak':el=>{ Store.setSettings({speak:el.value}); toast(el.value==='off'?'בדיקת ההגייה כבויה':el.value==='adult'?'מבוגר יאשר את ההגייה':'זיהוי דיבור אוטומטי, עם אישור מבוגר כגיבוי'); render(); },
   't-weaklist':el=>{ const s=Store.students[el.dataset.id]; if(!s) return; const weak=wordsFor(s).filter(w=>{const v=s.words&&s.words[w.id]; return v&&(level(v)===-1||(v.ma+v.qa>=2&&(v.mo+v.qo)/(v.ma+v.qa)<.5));}).slice(0,8);
@@ -2051,8 +2089,8 @@ function vTSpace(){ const T=App.t,me=App.tme;
   if(!me||T.who){ const sc=schoolsKnown();
     return `<div class="t">${head}<form class="tbox stack" data-form="ts-me" style="max-width:600px"><h2 style="font-size:1.2rem">מי את/ה?</h2>
       <p class="note">השם ובית הספר יופיעו על כל רשימה שתיצרו, וכך התלמידים ימצאו אותה. בכוונה אין כאן כיתות או רמות.</p>
-      <div class="field"><label for="ts-name">השם שלך, כמו שהתלמידים מכירים</label><input type="text" id="ts-name" maxlength="30" required autocomplete="off" value="${esc(me?me.name:'')}" placeholder="למשל: המורה דנה"></div>
-      <div class="field"><label for="ts-school">בית הספר</label><input type="text" id="ts-school" maxlength="40" required autocomplete="off" list="ts-schools" value="${esc(me?me.school:'')}" placeholder="שם בית הספר"><datalist id="ts-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
+      <div class="field"><label for="ts-name">השם שלך, כמו שהתלמידים מכירים</label><input type="text" id="ts-name" maxlength="30" required autocomplete="off" value="${esc(me?me.name:(App.gPrefill&&App.gPrefill.name)||'')}" placeholder="למשל: המורה דנה"></div>
+      <div class="field"><label for="ts-school">בית הספר</label><input type="text" id="ts-school" maxlength="40" required autocomplete="off" list="ts-schools" value="${esc(me?me.school:(App.gPrefill&&App.gPrefill.school)||'')}" placeholder="שם בית הספר"><datalist id="ts-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
        ${sc.length?`<div class="row" style="gap:8px">${sc.map(x=>`<button type="button" class="btn small" data-act="ts-school" data-v="${esc(x)}">🏫 ${esc(x)}</button>`).join('')}</div><p class="note">כדאי לבחור בית ספר קיים, כדי שכל המורים מאותו בית ספר יופיעו יחד.</p>`:''}</div>
       <div class="row"><button class="btn primary" type="submit">שמירה</button>${me?'<button type="button" class="btn small" data-act="ts-cancel">ביטול</button>':''}</div></form></div>`; }
   if(T.edit) return `<div class="t">${head}${vEditor()}</div>`;
@@ -2107,7 +2145,8 @@ Object.assign(ACT,{
   't-tcode-off':()=>{ Store.setSettings({tcode:''}); toast('קוד המורים בוטל. מורים לא יוכלו להיכנס עד שתגדירו קוד חדש.'); render(); }
 });
 Object.assign(FORM,{
-  'ts-me':()=>{ const n=$('#ts-name').value.trim().slice(0,30), sc=$('#ts-school').value.trim().slice(0,40); if(!n||!sc) return; setTMe({name:n,school:sc}); App.t.who=false; toast('שלום '+n); render(); },
+  'ts-me':()=>{ const n=$('#ts-name').value.trim().slice(0,30), sc=$('#ts-school').value.trim().slice(0,40); if(!n||!sc) return; setTMe(App.gUser?{name:n,school:sc,email:App.gUser.email}:{name:n,school:sc});
+    if(App.gUser){ const T=(Store.settings.teachers||[]).slice(); const i=T.findIndex(x=>normEmail(x.email)===App.gUser.email); const rec={email:App.gUser.email,name:n,school:sc}; if(i>=0) T[i]={...T[i],...rec}; else T.push(rec); Store.setSettings({teachers:T}); } App.t.who=false; toast('שלום '+n); render(); },
   't-tcode':()=>{ const a=$('#t-tc1').value.trim(); if(!/^\d{4}$/.test(a)){ toast('קוד המורים צריך להיות 4 ספרות'); return; }
     if(a===String(Store.settings.pin||'2008')){ toast('קוד המורים חייב להיות שונה מהסיסמה הראשית'); return; }
     Store.setSettings({tcode:a}); $('#t-tc1').value=''; document.activeElement&&document.activeElement.blur(); toast('קוד המורים נשמר'); render(); }
