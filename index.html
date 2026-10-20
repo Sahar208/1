@@ -1250,7 +1250,7 @@ const Store={db:null,mode:'local',readOnly:false,students:{},lists:{},media:{},s
         this.online=true; this.apiErr=''; rebuildCW(); this.saveLocal(); this.saveMediaLocal(); App.onData(); }
       catch(e){ this.online=false; this.apiErr=e&&e.old?'old':'net'; App.onData(); } };
     this.pull=pull;
-    await pull(); setInterval(()=>{ if(!document.hidden&&['who','teacher','map','tspace','pin'].includes(App.screen)) pull(); },25000); },
+    await pull(); setInterval(()=>{ if(!document.hidden&&['who','teacher','map','tspace','pin','world'].includes(App.screen)) pull(); },25000); },
   async connect(){
     if(GAS) return this.connectGas();
     let db=null; try{ db=window.claude&&window.claude.use? await window.claude.use('db'):null; }catch(e){ db=null; }
@@ -1548,7 +1548,7 @@ function vPin(){ return `<div class="kbar"><button class="btn small" data-act="h
   <p class="pinmsg" id="pinmsg">${App.pinMsg}</p></div>`; }
 function pinKey(k){ if(k==='back') App.pin=App.pin.slice(0,-1); else if(App.pin.length<4) App.pin+=k; App.pinMsg='';
   if(App.pin.length===4){ if(App.pin===String(Store.settings.pin||'2008')){ App.pin=''; App.t.detail=null; App.t.role='admin'; App.t.edit=null; ensureCodes(); App.go('teacher'); return; }
-    if(Store.settings.tcode&&App.pin===String(Store.settings.tcode)){ App.pin=''; App.t.role='teacher'; App.t.edit=null; App.t.confirm=null; App.t.who=!App.tme; ensureCodes(); App.go('tspace'); return; } App.pin=''; App.pinMsg='הקוד לא נכון. נסו שוב.'; Sound.sfx('bad'); render(); $('#pindots').classList.add('shake'); return; }
+    if(Store.settings.tcode&&App.pin===String(Store.settings.tcode)){ App.pin=''; App.t.role='teacher'; App.t.edit=null; App.t.confirm=null; App.t.who=!App.tme; App.t.tab='lists'; App.t.detail=null; ensureCodes(); App.go('tspace'); return; } App.pin=''; App.pinMsg='הקוד לא נכון. נסו שוב.'; Sound.sfx('bad'); render(); $('#pindots').classList.add('shake'); return; }
   Sound.sfx('tap'); render(); }
 
 /* ---------- TEACHER ---------- */
@@ -1568,9 +1568,9 @@ function tStudents(){ if(App.t.demo){ DEMO=DEMO||demoData(); return Object.value
 function vTeacher(){ const T=App.t; const all=tStudents(); const sf=T.demo?'':(T.school||''); const list=sf?all.filter(s=>(sf==='-'?!String(s.school||'').trim():String(s.school||'').trim()===sf)):all;
   const mode=modeBadge();
   const pend=(Store.settings.teachers||[]).filter(t=>t.status==='pending').length;
-  const tabs=[['overview','סקירת הכיתה'],['students','תלמידים'],['words','מילים'],['vocab','אוצר מילים'],['teachers','מורים ובתי ספר'+(pend?` <span class="badge">${pend}</span>`:'')],['settings','הגדרות']];
+  const tabs=[['overview','סקירת הכיתה'],['students','תלמידים'],['words','מילים'],['vocab','אוצר מילים'],['teachers','מורים ובתי ספר'+(pend?` <span class="badge">${pend}</span>`:'')],['msgs','הודעות'],['settings','הגדרות']];
   const sc=schoolsKnown(); const filt=!T.demo&&sc.length&&['overview','students','words'].includes(T.tab)&&!T.detail?`<div class="row sfilter"><span class="note">בית ספר:</span>${[['','כל בתי הספר']].concat(sc.map(x=>[x,x])).concat(all.some(s=>!String(s.school||'').trim())?[['-','בלי בית ספר']]:[]).map(([v,l])=>`<button class="btn small ${sf===v?'primary':'ghost'}" data-act="t-sf" data-v="${esc(v)}">${v&&v!=='-'?'🏫 ':''}${esc(l)}</button>`).join('')}</div>`:'';
-  let body=''; if(T.detail) body=vTDetail(); else if(T.tab==='overview') body=vTOverview(list); else if(T.tab==='students') body=vTStudents(list); else if(T.tab==='words') body=vTWords(list); else if(T.tab==='vocab') body=vTVocab(); else if(T.tab==='teachers') body=vTTeachers(); else body=vTSettings();
+  let body=''; if(T.detail) body=vTDetail(); else if(T.tab==='overview') body=vTOverview(list); else if(T.tab==='students') body=vTStudents(list); else if(T.tab==='words') body=vTWords(list); else if(T.tab==='vocab') body=vTVocab(); else if(T.tab==='teachers') body=vTTeachers(); else if(T.tab==='msgs') body=vTMsgs(Object.values(Store.students)); else body=vTSettings();
   return `<div class="t"><div class="thead"><div><h1>לוח המורה</h1><p class="muted">אי המילים · ${list.length} תלמידים</p></div>${mode}<span class="spacer"></span><button class="btn small" data-act="t-exit">יציאה למשחק</button></div>
    ${T.demo?`<div class="demo-banner"><b>תצוגה לדוגמה</b><span>אלה נתונים מומצאים להמחשה, לא תלמידים אמיתיים.</span><span class="spacer"></span><button class="btn small" data-act="t-demo">חזרה לנתונים האמיתיים</button></div>`:''}
    <nav class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${!T.detail&&T.tab===k}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</nav>${filt}${body}</div>`; }
@@ -1612,8 +1612,8 @@ function vTStudents(list){ const T=App.t; const rows=list.map(s=>({s,m:summary(s
   const key={name:x=>x.s.name,letters:x=>lettersDone(x.s),coins:x=>x.s.coins||0,stage:x=>x.m.done,stars:x=>x.m.stars,acc:x=>x.m.acc==null?-1:x.m.acc,mast:x=>x.m.mast,listens:x=>x.m.listens,said:x=>x.m.said,secs:x=>x.m.secs,last:x=>x.m.last}[T.sort];
   rows.sort((a,b)=>{ const A=key(a),B=key(b); return (typeof A==='string'?A.localeCompare(B,'he'):A-B)*T.dir; });
   const th=(k,l)=>`<th><button data-act="t-sort" data-k="${k}" aria-pressed="${T.sort===k}">${l}${T.sort===k?(T.dir>0?' ▲':' ▼'):''}</button></th>`;
-  const sc=schoolsKnown(); const dsc=T.school&&T.school!=='-'?T.school:'';
-  return `<form class="addform" data-form="t-add"><input type="text" id="t-new-name" maxlength="30" placeholder="שם התלמיד/ה" autocomplete="off" required><input type="text" id="t-new-school" maxlength="40" placeholder="בית ספר" list="t-schools" value="${esc(dsc)}" autocomplete="off"><input type="text" id="t-new-cls" maxlength="12" placeholder="כיתה" autocomplete="off" style="max-width:110px"><datalist id="t-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist><button class="btn primary small" type="submit">＋ הוספת תלמיד/ה</button></form>
+  const sc=schoolsKnown(); const tch=App.t.role==='teacher'&&App.tme; const dsc=tch?App.tme.school:T.school&&T.school!=='-'?T.school:'';
+  return `<form class="addform" data-form="t-add"><input type="text" id="t-new-name" maxlength="30" placeholder="שם התלמיד/ה" autocomplete="off" required><input type="text" id="t-new-school" maxlength="40" placeholder="בית ספר" list="t-schools" value="${esc(dsc)}" autocomplete="off" ${tch?'readonly':''}><input type="text" id="t-new-cls" maxlength="12" placeholder="כיתה" autocomplete="off" style="max-width:110px"><datalist id="t-schools">${sc.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist><button class="btn primary small" type="submit">＋ הוספת תלמיד/ה</button></form>
   ${list.length?`<div class="tablewrap"><table><thead><tr>${th('name','תלמיד/ה')}${th('stage','שלבים')}${th('letters','אותיות')}${th('stars','כוכבים')}${th('coins','מטבעות')}${th('acc','דיוק')}${th('mast','מילים שנשלטו')}${th('said','אמר/ה נכון')}${th('listens','האזנות')}${th('secs','זמן תרגול')}${th('last','פעילות אחרונה')}<th>מצב</th></tr></thead>
   <tbody>${rows.map(({s,m})=>{const st=status(m);return `<tr><td><button class="namebtn" data-act="t-open" data-id="${s.id}"><span class="av">${esc(s.avatar)}</span>${esc(s.name)}</button>${s.school||s.cls?`<div class="note" style="margin:0">${s.school?'🏫 '+esc(s.school):''}${s.cls?' · '+esc(s.cls):''}</div>`:''}</td><td>${pips(s)}${m.lists?` <span class="muted" style="font-size:.8rem">+${m.ldone}/${m.lists} רשימות</span>`:''}</td><td class="num">${lettersDone(s)}/4</td><td class="num">${m.stars}/15</td><td class="num">${s.coins||0}</td><td>${accbar(m.acc)}</td><td class="num">${m.mast}/${m.total}</td><td class="num">${m.said}/${m.total}</td><td class="num">${m.listens}</td><td class="num">${mins(m.secs)}</td><td>${ago(m.last)}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;}).join('')}</tbody></table></div>
   <p class="note" style="margin-top:8px">לחצו על שם כדי לראות פירוט מלא לכל מילה ולכל שלב.</p>`:emptyClass()}`; }
@@ -1640,7 +1640,8 @@ function vTDetail(){ const T=App.t; const s=(T.demo?DEMO:Store.students)[T.detai
     <h2 style="margin-top:18px">מילים לחיזוק</h2>${weak.length?`<div class="row">${weak.map(w=>`<span class="pill bad">${w.img?'':esc(w.emo)} ${esc(w.en)} · ${esc(w.he)}</span>`).join('')}</div><button class="btn small" style="margin-top:10px" data-act="t-weaklist" data-id="${s.id}">📝 יצירת רשימת תרגול מהמילים האלה</button>`:'<p class="muted">אין מילים שדורשות חיזוק כרגע.</p>'}</div></div>
   ${T.demo?'':`<div class="tbox"><h2>ניהול</h2><form class="addform" data-form="t-rename"><input type="text" id="t-rename" maxlength="30" value="${esc(s.name)}" aria-label="שם" placeholder="שם"><input type="text" id="t-rschool" maxlength="40" value="${esc(s.school||'')}" aria-label="בית ספר" placeholder="בית ספר" list="t-schools2" autocomplete="off"><input type="text" id="t-rcls" maxlength="12" value="${esc(s.cls||'')}" aria-label="כיתה" placeholder="כיתה" style="max-width:110px" autocomplete="off"><datalist id="t-schools2">${schoolsKnown().map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist><button class="btn small" type="submit">שמירה</button></form>
    <div class="row" style="margin:10px 0"><span>🔐 התמונות הסודיות: ${s.secret?`<b style="font-size:1.5rem;letter-spacing:4px">${secretPics(s)}</b>`:'<span class="muted">עוד לא נבחרו (התלמיד/ה יבחר/תבחר בכניסה הבאה)</span>'}</span>${s.secret?`<button class="btn small" data-act="t-secret0" data-id="${s.id}">איפוס התמונות</button>`:''}</div>
-   ${c?`<div class="confirm"><b>${c==='reset'?'לאפס את כל ההתקדמות של '+esc(s.name)+'?':'למחוק את '+esc(s.name)+' לגמרי?'}</b><span>אי אפשר לבטל.</span><span class="spacer"></span><button class="btn small danger" data-act="t-do" data-id="${s.id}">${c==='reset'?'כן, לאפס':'כן, למחוק'}</button><button class="btn small" data-act="t-cancel">ביטול</button></div>`
+   <div class="row" style="margin-bottom:10px"><button class="btn small primary" data-act="m-to" data-id="${s.id}">💌 שליחת הודעה ל${esc(s.name)}</button></div>
+   ${App.t.role==='teacher'?'':c?`<div class="confirm"><b>${c==='reset'?'לאפס את כל ההתקדמות של '+esc(s.name)+'?':'למחוק את '+esc(s.name)+' לגמרי?'}</b><span>אי אפשר לבטל.</span><span class="spacer"></span><button class="btn small danger" data-act="t-do" data-id="${s.id}">${c==='reset'?'כן, לאפס':'כן, למחוק'}</button><button class="btn small" data-act="t-cancel">ביטול</button></div>`
      :`<div class="row"><button class="btn small" data-act="t-ask" data-type="reset" data-id="${s.id}">איפוס התקדמות</button><button class="btn small ghost" data-act="t-ask" data-type="delete" data-id="${s.id}" style="color:var(--bad)">מחיקת תלמיד/ה</button></div>`}</div>`}`; }
 
 function vTWords(list){ if(!list.length) return emptyClass(); const T=App.t; const ag=wordAgg(list);
@@ -1804,7 +1805,7 @@ async function gSignedIn(resp){ const p=jwtPayload(resp&&resp.credential); const
   if(me) setTMe(me); else { App.tme=null; App.gPrefill={name:(e&&e.name)||p.name||'',school:(e&&e.school)||'',city:(e&&e.city)||'',grades:(e&&e.grades)||[]}; }
   if(e) tMut(T=>{ const x=T.find(y=>normEmail(y.email)===email); if(x) x.last=Date.now(); },true);
   else if(r.role==='teacher') tMut(T=>{ if(!T.some(y=>normEmail(y.email)===email)) T.push({email,name:p.name||'',school:'',via:'domain',at:Date.now(),last:Date.now()}); },true);
-  App.t.role='teacher'; App.t.who=!me; ensureCodes(); App.go('tspace'); toast('שלום '+(p.given_name||p.name||'')); }
+  App.t.role='teacher'; App.t.who=!me; App.t.tab='lists'; App.t.detail=null; ensureCodes(); App.go('tspace'); toast('שלום '+(p.given_name||p.name||'')); }
 /* teachers live in settings.teachers; pull first so two computers don't overwrite each other */
 async function tMut(fn,quiet){ if(GAS&&Store.pull&&!quiet){ try{ await Store.pull(); }catch(e){} } const T=JSON.parse(JSON.stringify(Store.settings.teachers||[])); fn(T); Store.setSettings({teachers:T}); }
 const GRADES=['א','ב','ג','ד','ה','ו','ז','ח','ט'];
@@ -1827,7 +1828,7 @@ function render(){ const v={who:vWho,newp:vNew,map:vMap,learn:vLearn,match:vMatc
   if(['lmeet','lfind','lbuild','ldone'].includes(App.screen)&&!App.lg){ App.screen='world'; $('#app').innerHTML=vWorld(); return; }
   if(App.screen==='tspace'&&App.t.role!=='teacher'){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
   if((App.screen==='skey'&&!(App.k&&Store.students[App.k.id]))||(App.screen==='treq'&&!App.gReq)){ App.screen='who'; $('#app').innerHTML=vWho(); return; }
-  $('#app').innerHTML=v(); if(App.screen==='pin') setTimeout(mountGoogle,0); }
+  $('#app').innerHTML=v(); if(App.screen==='pin') setTimeout(mountGoogle,0); if(App.screen==='world') msgPop(); }
 
 const ACT={
   home:()=>{ if(App.s){Store.save(App.s.id,true);} App.sid=null; App.go('who'); },
@@ -1922,7 +1923,7 @@ const FORM={
     if(Object.values(Store.students).some(x=>x.name.trim()===n&&String(x.school||'').trim()===school)){ toast('כבר יש שחקן בשם הזה. אם זה אתם, חזרו ובחרו את השם שלכם. אם לא, הוסיפו אות משם המשפחה.'); return; }
     const cls=($('#np-cls')&&$('#np-cls').value.trim().slice(0,12))||''; const extra={}; if(school) extra.school=school; if(cls) extra.cls=cls;
     const id=Store.add(n,App.np.avatar,extra); if(school) setDevSchool(school); App.k={id,mode:'set',a:[],first:null,fails:0,isNew:true}; App.go('skey'); },
-  't-add':f=>{ const i=$('#t-new-name'); const n=i.value.trim(); if(!n) return; const sch=($('#t-new-school')&&$('#t-new-school').value.trim().slice(0,40))||'', cls=($('#t-new-cls')&&$('#t-new-cls').value.trim().slice(0,12))||''; const ex={}; if(sch) ex.school=sch; if(cls) ex.cls=cls;
+  't-add':f=>{ const i=$('#t-new-name'); const n=i.value.trim(); if(!n) return; const sch=App.t.role==='teacher'&&App.tme?App.tme.school:($('#t-new-school')&&$('#t-new-school').value.trim().slice(0,40))||'', cls=($('#t-new-cls')&&$('#t-new-cls').value.trim().slice(0,12))||''; const ex={}; if(sch) ex.school=sch; if(cls) ex.cls=cls;
     if(Object.values(Store.students).some(x=>x.name.trim()===n&&String(x.school||'').trim()===sch)){ toast('כבר יש תלמיד/ה בשם הזה בבית הספר הזה'); return; } Store.add(n,AVATARS[Math.floor(Math.random()*AVATARS.length)],ex); i.value=''; const c=$('#t-new-cls'); if(c) c.value=''; App.t.demo=false; toast(n+' נוסף/ה'); render(); setTimeout(()=>{const j=$('#t-new-name'); j&&j.focus();},30); },
   't-rename':f=>{ const s=Store.students[App.t.detail]; const n=$('#t-rename').value.trim(); if(!s||!n) return; s.name=n.slice(0,30); const sc=($('#t-rschool')&&$('#t-rschool').value.trim().slice(0,40))||'', cl=($('#t-rcls')&&$('#t-rcls').value.trim().slice(0,12))||'';
     if(sc) s.school=sc; else delete s.school; if(cl) s.cls=cl; else delete s.cls; Store.save(s.id,true); document.activeElement&&document.activeElement.blur(); toast('הפרטים נשמרו'); render(); },
@@ -2195,6 +2196,48 @@ function vTTeachers(){ const S=Store.settings,T=App.t; const all=(S.teachers||[]
      <div class="addform" style="margin:0"><input type="text" id="g-domain" dir="ltr" placeholder="school.org.il" autocomplete="off"><button class="btn small" data-act="g-add" data-k="gDomains" data-in="g-domain">הוספת דומיין</button></div>
      <p class="note">זהירות: אם גם לתלמידים יש חשבונות באותו דומיין, הם יוכלו להיכנס כמורים.</p></div>
     ${GCLIENT?'':'<p class="note">הכפתור "כניסה עם Google" מופיע רק באתר עצמו, לא בתצוגה כאן.</p>'}</div></div>`; }
+const myStudents=()=>App.tme?Object.values(Store.students).filter(x=>String(x.school||'').trim()===App.tme.school):[];
+function vTMyStudents(){ const T=App.t, me=App.tme, all=myStudents(); const cls=[...new Set(all.map(x=>String(x.cls||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const cf=cls.includes(T.cf)?T.cf:''; const list=cf?all.filter(x=>String(x.cls||'').trim()===cf):all;
+  const ms=list.map(x=>summary(x)); const act=list.filter(x=>x.lastActive&&Date.now()-x.lastActive<7*86400000).length;
+  return `<p class="note" style="margin-top:0">כל התלמידים שבחרו בבית הספר 🏫 ${esc(me.school)}. לחצו על שם כדי לראות פירוט מלא, לתקן פרטים או לשלוח הודעה.</p>
+   ${cls.length?`<div class="row sfilter"><span class="note">כיתה:</span>${[['','כל הכיתות']].concat(cls.map(x=>[x,x])).map(([v,l])=>`<button class="btn small ${cf===v?'primary':'ghost'}" data-act="t-cf" data-v="${esc(v)}">${esc(l)}</button>`).join('')}</div>`:''}
+   ${list.length?`<div class="kpis" style="margin-bottom:14px"><div class="kpi"><span class="l">תלמידים</span><span class="v">${list.length}</span></div><div class="kpi"><span class="l">שיחקו השבוע</span><span class="v">${act}</span></div><div class="kpi"><span class="l">מילים שנשלטו (ממוצע)</span><span class="v">${Math.round(ms.reduce((a,m)=>a+m.mast,0)/list.length)}</span></div><div class="kpi"><span class="l">זמן תרגול כולל</span><span class="v" style="font-size:1.4rem">${mins(ms.reduce((a,m)=>a+m.secs,0))}</span></div></div>`:''}
+   ${vTStudents(list)}`; }
+function vTOthers(){ const me=App.tme; const ls=Object.values(Store.lists).filter(l=>!ownList(l)&&(l.words||[]).length>=2);
+  if(!ls.length) return `<div class="tbox empty"><div class="ic">📚</div><h2 style="font-size:1.2rem">עוד אין רשימות של מורים אחרים</h2><p class="muted">כשמורים אחרים ייצרו רשימות, הן יופיעו כאן.</p></div>`;
+  const key=l=>(String(l.school||'').trim()||'בלי בית ספר'); const groups={}; ls.forEach(l=>{ (groups[key(l)]=groups[key(l)]||[]).push(l); });
+  const order=Object.keys(groups).sort((a,b)=>(b===me.school)-(a===me.school)||a.localeCompare(b,'he'));
+  return `<p class="note" style="margin-top:0">רשימות שמורים אחרים הכינו. התלמידים שלך יכולים לתרגל אותן מיד עם הקוד, או שתעתיקו רשימה אליכם ותשנו אותה כרצונכם.</p>`+order.map(g=>`<h2 style="font-size:1.15rem;margin:16px 0 8px">🏫 ${esc(g)}${g===me.school?' <span class="pill neutral">בית הספר שלי</span>':''}</h2>
+   <div class="lcards">${groups[g].sort((a,b)=>String(a.teacher||'').localeCompare(String(b.teacher||''),'he')||(b.createdAt||0)-(a.createdAt||0)).map(l=>`<div class="tbox lcard"><div class="row"><b style="font-size:1.1rem;flex:1;min-width:0">${listIcon(l)} ${esc(l.name)}</b>${l.code?`<span class="codechip">קוד <b>${esc(l.code)}</b></span>`:''}</div><p class="note" style="margin:0">🧑‍🏫 ${esc(l.teacher||'—')}</p>${listChips(l)}
+    <div class="row"><button class="btn small" data-act="lo-copy" data-id="${l.id}">📋 העתקה לרשימות שלי</button></div></div>`).join('')}</div>`).join(''); }
+/* ---------- teacher → student messages (kept in settings.msgs; read marks in each student's own record) ---------- */
+const STK=['⭐','👏','🏆','💪','❤️','🎉','🌟','😊'];
+async function sMut(key,fn){ if(GAS&&Store.pull){ try{ await Store.pull(); }catch(e){} } const v=JSON.parse(JSON.stringify(Store.settings[key]||[])); fn(v); Store.setSettings({[key]:v}); }
+const msgMine=m=>App.t.role==='admin'||(App.tme&&m.by&&((App.gUser&&m.by.email&&m.by.email===App.gUser.email)||(m.by.name===App.tme.name&&m.by.school===App.tme.school)));
+function vTMsgs(studs){ const T=App.t; const c=T.mc||(T.mc={to:'all',ids:[],stk:'⭐',text:'',cls:''}); if(T.msgTo){ c.to='some'; c.ids=T.msgTo.slice(); T.msgTo=null; }
+  studs=studs.slice().sort((a,b)=>String(a.school||'').localeCompare(String(b.school||''),'he')||String(a.cls||'').localeCompare(String(b.cls||''),'he')||a.name.localeCompare(b.name,'he'));
+  const cls=[...new Set(studs.map(x=>String(x.cls||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const sent=(Store.settings.msgs||[]).filter(msgMine).sort((a,b)=>b.at-a.at);
+  const who=id=>Store.students[id]; const readBy=m=>m.to.filter(id=>who(id)&&(who(id).readM||[]).includes(m.id));
+  return `<div class="grid2" style="align-items:start"><form class="tbox stack" data-form="m-send"><h2>💌 הודעה חדשה</h2>
+   <p class="note" style="margin:0">ההודעה תקפוץ לתלמיד/ה בחלון נעים בכניסה הבאה למשחק, עם כפתור הקראה בקול.</p>
+   <fieldset class="field"><legend>למי?</legend><div class="row"><label class="toggle"><input type="radio" name="m-to" data-act="m-tomode" value="all" ${c.to==='all'?'checked':''}>${App.t.role==='admin'?'כל התלמידים':'כל התלמידים שלי'} (${studs.length})</label>${cls.length?`<label class="toggle"><input type="radio" name="m-to" data-act="m-tomode" value="cls" ${c.to==='cls'?'checked':''}>כיתה</label>`:''}<label class="toggle"><input type="radio" name="m-to" data-act="m-tomode" value="some" ${c.to==='some'?'checked':''}>תלמידים מסוימים</label></div>
+    ${c.to==='cls'?`<div class="row" style="gap:6px">${cls.map(x=>`<button type="button" class="btn small ${c.cls===x?'primary':'ghost'}" data-act="m-cls" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>`:''}
+    ${c.to==='some'?`<div class="pickstud">${studs.map(x=>`<label class="toggle"><input type="checkbox" data-act="m-stud" value="${x.id}" ${c.ids.includes(x.id)?'checked':''}>${esc(x.avatar)} ${esc(x.name)}${x.cls?` <small class="muted">${esc(x.cls)}</small>`:''}</label>`).join('')||'<p class="note">עוד אין תלמידים.</p>'}</div>`:''}</fieldset>
+   <div class="field"><span style="font-weight:500">מדבקה</span><div class="row" style="gap:6px">${STK.map(x=>`<button type="button" class="stk" data-act="m-stk" data-v="${x}" aria-pressed="${c.stk===x}">${x}</button>`).join('')}</div></div>
+   <div class="field"><label for="m-text">ההודעה</label><textarea id="m-text" maxlength="200" rows="3" required placeholder="למשל: כל הכבוד על ההתמדה השבוע! מחכה לראות אותך באי הבנאים 😊">${esc(c.text)}</textarea><p class="note" style="margin:0">עד 200 תווים. כדאי משפט קצר ופשוט, כי גם ילדים שעוד לא קוראים ישמעו אותו בהקראה.</p></div>
+   <div><button class="btn primary" type="submit">שליחה</button></div></form>
+   <div class="tbox"><h2>הודעות שנשלחו <small>${sent.length}</small></h2>${sent.length?`<div class="stack" style="gap:10px">${sent.slice(0,40).map(m=>{ const rb=readBy(m); const cf=T.confirm&&T.confirm.type==='msg'&&T.confirm.id===m.id;
+     return `<div class="msgrow"><div class="row" style="gap:8px"><span style="font-size:1.6rem">${esc(m.stk||'💌')}</span><div style="flex:1;min-width:0"><div>${esc(m.text)}</div><div class="note" style="margin:0">${fmtDate(m.at)} · אל ${m.to.length===1&&who(m.to[0])?esc(who(m.to[0]).name):m.to.length+' תלמידים'}${App.t.role==='admin'&&m.by?' · מאת '+esc(m.by.name):''} · <b>נקראה: ${rb.length}/${m.to.length}</b></div>
+       ${rb.length&&m.to.length>1?`<details><summary class="note">מי קרא/ה</summary><p class="note">${rb.map(id=>esc(who(id).name)).join(', ')}</p></details>`:''}</div>
+       ${cf?`<button class="btn small danger" data-act="m-delok" data-id="${m.id}">למחוק</button><button class="btn small" data-act="t-cancel">לא</button>`:`<button class="btn small ghost" style="color:var(--bad)" data-act="t-ask" data-type="msg" data-id="${m.id}" aria-label="מחיקה">✕</button>`}</div></div>`; }).join('')}</div>`:'<p class="muted">עוד לא נשלחו הודעות.</p>'}</div></div>`; }
+function kidNewMsgs(s){ if(!s) return []; const r=s.readM||[]; return (Store.settings.msgs||[]).filter(m=>(m.to||[]).includes(s.id)&&!r.includes(m.id)).sort((a,b)=>a.at-b.at); }
+function heSay(text){ try{ const ss=window.speechSynthesis; if(!ss){ toast('ההקראה לא זמינה במכשיר הזה'); return; } ss.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='he-IL'; u.rate=.9; const v=ss.getVoices().find(v=>/^he|^iw/i.test(v.lang)); if(v) u.voice=v; else if(ss.getVoices().length) toast('אין במכשיר הזה קול בעברית. בקשו ממבוגר להקריא 🙂'); ss.speak(u); }catch(e){} }
+function msgPop(){ const s=App.s; if(App.screen!=='world'||!s) return; const m=kidNewMsgs(s)[0]; if(!m||document.getElementById('msgpop')) return;
+  $('#app').insertAdjacentHTML('beforeend',`<div class="msgpop" id="msgpop" role="dialog" aria-modal="true" aria-labelledby="msgh"><div class="msgcard"><div class="msgstk">${esc(m.stk||'💌')}</div><h2 id="msgh">הודעה מ${esc(m.by&&m.by.name||'המורה')}</h2><p class="msgtext">${esc(m.text)}</p>
+   <div class="row" style="justify-content:center"><button class="btn sun" data-act="msg-say" data-id="${m.id}">🔊 הקראה</button><button class="btn primary big" data-act="msg-ok" data-id="${m.id}">תודה! ✨</button></div></div></div>`);
+  setTimeout(()=>{ const b=document.querySelector('#msgpop [data-act=msg-ok]'); b&&b.focus(); },50); if(!msgPop.burst){ msgPop.burst=1; try{ Sound.sfx('win'); }catch(e){} } }
 function vTSpace(){ const T=App.t,me=App.tme;
   const head=`<div class="thead"><div><h1>מרחב המורים</h1><p class="muted">${me?`${esc(me.name)} · 🏫 ${esc(me.school)}`:'אי המילים'}</p></div>${modeBadge()}<span class="spacer"></span>${me&&!T.who&&!T.edit?'<button class="btn small" data-act="ts-who">החלפת שם / בית ספר</button>':''}<button class="btn small" data-act="t-exit">יציאה</button></div>`;
   if(!me||T.who){ const v=me||App.gPrefill||{};
@@ -2202,8 +2245,14 @@ function vTSpace(){ const T=App.t,me=App.tme;
       <p class="note">השם ובית הספר יופיעו על כל רשימה שתיצרו, וכך התלמידים ימצאו אותה. היישוב והשכבות עוזרים למנהל לשייך אתכם למקום הנכון.</p>
       ${tFields(v,'ts')}<div class="row"><button class="btn primary" type="submit">שמירה</button>${me?'<button type="button" class="btn small" data-act="ts-cancel">ביטול</button>':''}</div></form></div>`; }
   if(T.edit) return `<div class="t">${head}${vEditor()}</div>`;
+  const tabs=[['lists','📝 הרשימות שלי'],['others','📚 רשימות של מורים אחרים'],['students','🧒 התלמידים שלי'],['msgs','💌 הודעות']]; if(!tabs.some(x=>x[0]===T.tab)) T.tab='lists';
+  const nav=`<nav class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${!T.detail&&T.tab===k}" data-act="t-tab" data-tab="${k}">${l}</button>`).join('')}</nav>`;
+  if(T.detail){ const st=Store.students[T.detail]; if(!st||String(st.school||'').trim()!==me.school) T.detail=null; else return `<div class="t">${head}${nav}${vTDetail()}</div>`; }
+  if(T.tab==='others') return `<div class="t">${head}${nav}${vTOthers()}</div>`;
+  if(T.tab==='students') return `<div class="t">${head}${nav}${vTMyStudents()}</div>`;
+  if(T.tab==='msgs') return `<div class="t">${head}${nav}${vTMsgs(myStudents())}</div>`;
   const mine=Object.values(Store.lists).filter(ownList).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  return `<div class="t">${head}<div class="row" style="margin-bottom:14px"><div style="flex:1;min-width:0"><h2 style="font-size:1.3rem">הרשימות שלי</h2><p class="note">התלמידים מוצאים את הרשימות ב"⚓ נמל המורה": בוחרים את בית הספר ואת השם שלך, או מקלידים את הקוד של הרשימה.</p></div><button class="btn primary small" data-act="le-new">＋ רשימה חדשה</button></div>
+  return `<div class="t">${head}${nav}<div class="row" style="margin-bottom:14px"><div style="flex:1;min-width:0"><h2 style="font-size:1.3rem">הרשימות שלי</h2><p class="note">התלמידים מוצאים את הרשימות ב"⚓ נמל המורה": בוחרים את בית הספר ואת השם שלך, או מקלידים את הקוד של הרשימה.</p></div><button class="btn primary small" data-act="le-new">＋ רשימה חדשה</button></div>
    ${mine.length?`<div class="lcards">${mine.map(l=>{ const done=listDoneBy(l); const c=T.confirm&&T.confirm.type==='list'&&T.confirm.id===l.id;
       return `<div class="tbox lcard"><div class="row"><b style="font-size:1.1rem;flex:1;min-width:0">📝 ${esc(l.name)}</b><span class="codechip">קוד לתלמידים <b>${esc(l.code||'—')}</b></span></div>${listChips(l)}
        <p class="note">${done.length?'סיימו: '+done.slice(0,14).map(s=>`${esc(s.avatar)} ${esc(s.name)} ${'⭐'.repeat((s.stages['L'+l.id]||{}).stars||1)}`).join(' · ')+(done.length>14?` ועוד ${done.length-14}`:''):'עוד אף תלמיד/ה לא סיים/ה את הרשימה'}</p>
@@ -2252,6 +2301,17 @@ Object.assign(ACT,{
   'ts-school':el=>{ const i=document.getElementById(el.dataset.in||'ts-school'); if(i) i.value=el.dataset.v; },
   'treq-x':()=>{ App.gReq=null; App.go('pin'); },
   't-sf':el=>{ App.t.school=el.dataset.v; render(); },
+  't-cf':el=>{ App.t.cf=el.dataset.v; render(); },
+  'lo-copy':el=>{ const l=Store.lists[el.dataset.id]; if(!l||!App.tme) return; const d=draftFromList(l); d.id=uid('L'); d.isNew=true; d.code=''; delete d.createdAt; d.removed=[]; d.to='pick'; d.school=App.tme.school; d.teacher=App.tme.name;
+    d.words=d.words.map(w=>({...w,id:uid('c')})); App.t.edit=d; App.t.msg=''; App.t.tab='lists'; render(); window.scrollTo({top:0}); toast('זה העתק שלך. אפשר לשנות ואז לשמור'); },
+  'm-to':el=>{ App.t.msgTo=[el.dataset.id]; App.t.detail=null; App.t.tab='msgs'; render(); window.scrollTo({top:0}); setTimeout(()=>{ const t=$('#m-text'); t&&t.focus(); },40); },
+  'm-tomode':el=>{ const c=App.t.mc; c.text=($('#m-text')||{}).value||c.text; c.to=el.value; render(); },
+  'm-cls':el=>{ const c=App.t.mc; c.text=($('#m-text')||{}).value||c.text; c.cls=el.dataset.v; render(); },
+  'm-stud':el=>{ const c=App.t.mc; if(el.checked){ if(!c.ids.includes(el.value)) c.ids.push(el.value); } else c.ids=c.ids.filter(x=>x!==el.value); },
+  'm-stk':el=>{ App.t.mc.stk=el.dataset.v; document.querySelectorAll('[data-act=m-stk]').forEach(b=>b.setAttribute('aria-pressed',b===el)); },
+  'm-delok':el=>{ sMut('msgs',M=>{ const i=M.findIndex(m=>m.id===el.dataset.id); if(i>=0) M.splice(i,1); }).then(()=>{ App.t.confirm=null; toast('ההודעה נמחקה'); render(); }); },
+  'msg-say':el=>{ const m=(Store.settings.msgs||[]).find(x=>x.id===el.dataset.id); if(m) heSay('הודעה מ'+(m.by&&m.by.name||'המורה')+'. '+m.text); },
+  'msg-ok':el=>{ const s=App.s; if(!s) return; try{ window.speechSynthesis&&speechSynthesis.cancel(); }catch(e){} s.readM=(s.readM||[]).concat(el.dataset.id).slice(-150); Store.save(s.id,true); const p=$('#msgpop'); p&&p.remove(); Sound.sfx('tap'); FX.burst(30); setTimeout(msgPop,250); },
   't-secret0':el=>{ const s=Store.students[el.dataset.id]; if(!s) return; delete s.secret; Store.save(s.id,true); toast('התמונות אופסו. בכניסה הבאה '+s.name+' יבחר/תבחר תמונות חדשות.'); render(); },
   'tm-ok':el=>{ tMut(T=>{ const x=T.find(y=>normEmail(y.email)===el.dataset.e); if(x){ delete x.status; x.ok=Date.now(); } }).then(()=>{ toast('המורה אושר/ה'); render(); }); },
   'tm-off':el=>{ tMut(T=>{ const x=T.find(y=>normEmail(y.email)===el.dataset.e); if(x){ if(x.status==='off') delete x.status; else x.status='off'; } }).then(()=>render()); },
@@ -2270,6 +2330,12 @@ Object.assign(FORM,{
     if(App.gUser){ const em=App.gUser.email; tMut(T=>{ const i=T.findIndex(x=>normEmail(x.email)===em); const rec={email:em,...v}; if(i>=0) T[i]={...T[i],...rec}; else T.push(rec); }); } App.t.who=false; toast('שלום '+v.name); render(); },
   'treq':()=>{ const q=App.gReq; if(!q) return; const v=readTFields('tq'); if(!v.name||!v.school||!v.city){ toast('מלאו שם, בית ספר ויישוב'); return; }
     tMut(T=>{ const i=T.findIndex(x=>normEmail(x.email)===q.email); const rec={email:q.email,...v,status:'pending',at:Date.now()}; if(i>=0){ if(T[i].status==='pending') T[i]={...T[i],...rec}; } else T.push(rec); }).then(()=>{ q.sent=true; render(); }); },
+  'm-send':()=>{ const T=App.t,c=T.mc; const text=($('#m-text').value||'').trim().slice(0,200); c.text=text; if(!text){ toast('כתבו הודעה'); return; }
+    const studs=T.role==='admin'?Object.values(Store.students):myStudents(); let ids=c.to==='all'?studs.map(x=>x.id):c.to==='cls'?studs.filter(x=>String(x.cls||'').trim()===c.cls).map(x=>x.id):c.ids.filter(id=>studs.some(x=>x.id===id));
+    if(c.to==='cls'&&!c.cls){ toast('בחרו כיתה'); return; } if(!ids.length){ toast('בחרו לפחות תלמיד/ה אחד/ת'); return; }
+    const me=App.tme||{}; const by=T.role==='admin'?{name:me.name||'המורה',school:me.school||'',email:(App.gUser&&App.gUser.email)||''}:{name:me.name,school:me.school,email:(App.gUser&&App.gUser.email)||''};
+    const m={id:uid('m'),by,to:ids,stk:c.stk||'⭐',text,at:Date.now()};
+    sMut('msgs',M=>{ const cut=Date.now()-120*86400000; for(let i=M.length-1;i>=0;i--) if((M[i].at||0)<cut) M.splice(i,1); M.push(m); while(M.length>300) M.shift(); }).then(()=>{ T.mc={to:c.to,ids:[],stk:c.stk,text:'',cls:c.cls}; toast(ids.length===1?'ההודעה נשלחה':`ההודעה נשלחה ל-${ids.length} תלמידים`); render(); }); },
   'tm-save':()=>{ const em=App.t.tedit; if(!em) return; const v=readTFields('tm'); if(!v.name||!v.school){ toast('צריך שם ובית ספר'); return; } const cur=(Store.settings.teachers||[]).find(x=>normEmail(x.email)===em);
     if(cur&&cur.name&&cur.school&&(cur.name!==v.name||cur.school!==v.school)) moveLists(cur.name,cur.school,v.name,v.school);
     tMut(T=>{ const x=T.find(y=>normEmail(y.email)===em); if(x) Object.assign(x,v); }).then(()=>{ App.t.tedit=null; toast('הפרטים נשמרו'); render(); }); },
@@ -2294,6 +2360,16 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .pics button:active{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
 .choice[aria-pressed="true"]{outline:3px solid var(--good,#2a9d5c)}
 .sfilter{gap:6px;margin:-4px 0 14px}
+.msgpop{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(10,30,40,.45);animation:mpfade .25s ease}
+.msgcard{background:var(--card);border-radius:28px;max-width:440px;width:100%;padding:26px 22px 22px;text-align:center;display:grid;gap:12px;box-shadow:0 18px 50px rgba(0,0,0,.25);animation:mppop .45s cubic-bezier(.2,1.4,.4,1)}
+.msgstk{font-size:4rem;line-height:1;animation:mpbob 2.4s ease-in-out infinite}
+.msgcard h2{font-size:1.25rem;margin:0;color:var(--ink-soft)}
+.msgtext{font-size:1.45rem;line-height:1.5;margin:0 0 6px;font-weight:500}
+@keyframes mpfade{from{opacity:0}} @keyframes mppop{from{transform:scale(.6) translateY(30px);opacity:0}} @keyframes mpbob{50%{transform:translateY(-6px) rotate(-6deg)}}
+@media (prefers-reduced-motion:reduce){.msgpop,.msgcard,.msgstk{animation:none}}
+.stk{font-size:1.6rem;width:48px;height:48px;border-radius:14px;border:2px solid var(--line);background:var(--card);cursor:pointer}
+.stk[aria-pressed="true"]{border-color:var(--ink);background:var(--paper-2)}
+.msgrow{border-bottom:1px solid var(--line);padding-bottom:10px}
 .badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--bad,#c0392b);color:#fff;font-size:.75rem;font-weight:700;margin-inline-start:4px}
 @media (max-width:420px){.pics{grid-template-columns:repeat(3,76px)}.pics button{width:76px;height:76px;font-size:2.4rem}}
 </style>`);
