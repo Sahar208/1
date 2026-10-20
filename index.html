@@ -1186,21 +1186,19 @@ const Speak={ok:null,busy:false,
   mode(){ const m=Store.settings.speak||'auto'; if(m==='auto'&&(!this.supported()||(!MICAPP&&this.ok===false))) return 'adult'; return m; },
   listen(target,on){ on=on||{}; return new Promise(res=>{ const R=window.SpeechRecognition||window.webkitSpeechRecognition; if(!R){ this.ok=false; return res({err:'unsupported'}); }
     let r; try{ r=new R(); }catch(e){ this.ok=false; return res({err:'unsupported'}); }
-    r.lang='en-US'; r.maxAlternatives=10; r.interimResults=true; r.continuous=true;
+    r.lang='en-US'; r.maxAlternatives=10; r.interimResults=true; r.continuous=false;
     const alts=new Set(); let done=false,audio=false,quiet=null,hard=null;
     const list=()=>[...alts];
-    const fin=v=>{ if(done) return; done=true; clearTimeout(quiet); clearTimeout(hard); try{r.stop();}catch(e){} setTimeout(()=>{ try{r.abort();}catch(e){} },50); res(v); };
+    const fin=v=>{ if(done) return; done=true; clearTimeout(quiet); clearTimeout(hard); try{r.abort();}catch(e){} res(v); };
     r.onaudiostart=()=>{ audio=true; on.ready&&on.ready(); };
     r.onspeechstart=()=>{ on.speech&&on.speech(); };
     r.onresult=e=>{ for(let k=e.resultIndex;k<e.results.length;k++){ const x=e.results[k]; for(let i=0;i<x.length;i++){ const t=(x[i].transcript||'').trim(); if(t) alts.add(t); } }
-      this.ok=true; if(target&&Speak.match(target,list())) return fin({alts:list(),ok:true});
-      clearTimeout(quiet); quiet=setTimeout(()=>fin({alts:list()}),1500); };
-    r.onspeechend=()=>{ clearTimeout(quiet); quiet=setTimeout(()=>fin({alts:list()}),1000); };
+      this.ok=true; if(target&&Speak.match(target,list())) return fin({alts:list(),ok:true}); };
     r.onerror=e=>{ if(['not-allowed','service-not-allowed','audio-capture','network'].includes(e.error)){ this.ok=false; return fin({alts:list(),err:e.error}); }
       fin({alts:list(),err:alts.size?null:e.error}); };
-    r.onend=()=>setTimeout(()=>fin({alts:list()}),250);
+    r.onend=()=>{ quiet=setTimeout(()=>fin({alts:list()}),300); };
     try{ r.start(); }catch(e){ this.ok=false; return fin({err:'start'}); }
-    hard=setTimeout(()=>{ if(!audio) this.ok=false; fin({alts:list(),timeout:true,err:audio||alts.size?null:'no-audio'}); },8000); }); },
+    hard=setTimeout(()=>{ if(!audio) this.ok=false; fin({alts:list(),timeout:true,err:audio||alts.size?null:'no-audio'}); },10000); }); },
   // Lenient enough for a Hebrew accent, strict enough not to accept a different word:
   // exact word, true homophones, one-letter slips in longer words, and same consonants with a similar vowel for 2+ consonant words.
   match(target,alts){
